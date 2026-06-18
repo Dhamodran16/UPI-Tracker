@@ -12,7 +12,7 @@ const connectDB = () => {
         privateKey = privateKey.substring(1, privateKey.length - 1);
       }
       admin.initializeApp({
-        credential: admin.credential.cert({
+        credential: admin.cert({
           projectId,
           clientEmail,
           privateKey: privateKey.replace(/\\n/g, '\n'),
@@ -23,7 +23,7 @@ const connectDB = () => {
       // Fallback
       try {
         admin.initializeApp({
-          credential: admin.credential.applicationDefault(),
+          credential: admin.applicationDefault(),
         });
         console.log('Firebase Admin initialized successfully using applicationDefault.');
       } catch (err) {
