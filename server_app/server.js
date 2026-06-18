@@ -54,7 +54,43 @@ app.use(express.json({ limit: '10kb' }));
 app.use(morgan(isProd ? 'combined' : 'dev'));
 
 // Health check
-app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
+app.get('/health', async (req, res) => {
+  let dbStatus = 'disconnected';
+  try {
+    const { getDb } = require('./config/db');
+    const db = getDb();
+    // Dry-run query to Firestore to verify connectivity
+    await db.collection('health_checks').limit(1).get();
+    dbStatus = 'connected';
+  } catch (err) {
+    dbStatus = 'error: ' + err.message;
+  }
+
+  const emailConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  const firebaseConfigured = !!(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
+
+  const isHealthy = dbStatus === 'connected';
+
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'healthy' : 'unhealthy',
+    time: new Date().toISOString(),
+    services: {
+      database: {
+        status: dbStatus,
+        type: 'Firestore'
+      },
+      email_otp: {
+        status: emailConfigured ? 'configured' : 'missing_config',
+        delivery: 'SMTP'
+      },
+      phone_otp: {
+        status: firebaseConfigured ? 'configured' : 'fallback_mode',
+        provider: 'Firebase Auth'
+      }
+    },
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 // Welcome route
 app.get('/', (req, res) => res.json({
