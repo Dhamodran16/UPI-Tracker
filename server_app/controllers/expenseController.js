@@ -1,5 +1,6 @@
 const { getDb } = require('../config/db');
 const admin = require('firebase-admin');
+const { Timestamp } = require('firebase-admin/firestore');
 
 // POST /api/expenses
 const createExpense = async (req, res) => {
@@ -36,7 +37,7 @@ const createExpense = async (req, res) => {
       upiApp: upiApp || 'Other',
       upiRef: trimmedRef,
       note: note ? String(note).trim() : null,
-      date: admin.firestore.Timestamp.fromDate(expenseDate),
+      date: Timestamp.fromDate(expenseDate),
       createdAt: new Date().toISOString()
     });
 
@@ -367,7 +368,7 @@ const updateExpense = async (req, res) => {
     for (const field of ALLOWED_UPDATE_FIELDS) {
       if (req.body[field] !== undefined) {
         if (field === 'date') {
-          update[field] = admin.firestore.Timestamp.fromDate(new Date(req.body[field]));
+          update[field] = Timestamp.fromDate(new Date(req.body[field]));
         } else {
           update[field] = req.body[field];
         }

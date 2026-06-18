@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
+const { FieldValue } = require('firebase-admin/firestore');
 const { getDb } = require('../config/db');
 
 const generateToken = (id) =>
@@ -198,8 +199,8 @@ const verifyOtp = async (req, res) => {
     // Mark verified and clear OTP
     await db.collection('users').doc(userId).update({
       isVerified: true,
-      otp: admin.firestore.FieldValue.delete(),
-      otpExpires: admin.firestore.FieldValue.delete()
+      otp: FieldValue.delete(),
+      otpExpires: FieldValue.delete()
     });
 
     // Sync verified user to Firebase Auth and generate custom token

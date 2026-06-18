@@ -1,5 +1,6 @@
 const admin = require('firebase-admin');
 const { getApps } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 
 const connectDB = () => {
   if (getApps().length === 0) {
@@ -34,14 +35,14 @@ const connectDB = () => {
       }
     }
   }
-  return admin.firestore();
+  return getFirestore();
 };
 
 const getDb = () => {
   if (getApps().length === 0) {
     return connectDB();
   }
-  return admin.firestore();
+  return getFirestore();
 };
 
 module.exports = { connectDB, getDb };
