@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
@@ -106,8 +106,8 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.black.withValues(alpha: 0.12)),
+                    color: Theme.of(context).colorScheme.surface,
+                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(children: [
@@ -140,8 +140,8 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color:  active ? col.withValues(alpha: 0.12) : Colors.white,
-                  border: Border.all(color: active ? col : Colors.black.withValues(alpha: 0.1)),
+                  color:  active ? col.withValues(alpha: 0.12) : Theme.of(context).colorScheme.surface,
+                  border: Border.all(color: active ? col : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [

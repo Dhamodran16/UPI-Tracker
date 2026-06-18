@@ -41,8 +41,9 @@ class CatIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final col = AppColors.category[category] ?? const Color(0xFF888780);
-    final bg  = AppColors.categoryBg[category] ?? const Color(0xFFF1EFE8);
+    final bg  = col.withValues(alpha: isDark ? 0.16 : 0.10);
     final ico = AppIcons.category[category] ?? Icons.more_horiz;
     return Container(
       width: size, height: size,
@@ -106,7 +107,7 @@ class TxnTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.categoryBg[expense.category] ?? const Color(0xFFF1EFE8),
+                  color: (AppColors.category[expense.category] ?? const Color(0xFF888780)).withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.16 : 0.10),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(expense.category, style: TextStyle(fontSize: 10, color: AppColors.category[expense.category] ?? const Color(0xFF888780))),
@@ -139,7 +140,7 @@ class BarRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: pct, minHeight: 8,
-            backgroundColor: const Color(0xFFF1EFE8),
+            backgroundColor: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
             valueColor: AlwaysStoppedAnimation(color),
           ),
         )),

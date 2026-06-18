@@ -38,7 +38,9 @@ class InsightsScreen extends StatelessWidget {
         // ── Smart insight cards ───────────────────────
         const SectionHeader(title: 'SMART INSIGHTS'),
         if (topCat != null) _InsightCard(
-          tag: 'Top category', tagColor: const Color(0xFFE6F1FB), tagTextColor: const Color(0xFF0C447C),
+          tag: 'Top category',
+          tagColor: isDark ? const Color(0xFF162B44) : const Color(0xFFE6F1FB),
+          tagTextColor: isDark ? const Color(0xFF8AB9E8) : const Color(0xFF0C447C),
           title: '${topCat.key} is your biggest expense',
           subtitle: 'You spent ${fmtAmt(topCat.value)} (${total > 0 ? (topCat.value / total * 100).round() : 0}% of total) on ${topCat.key} this month.',
           icon: AppIcons.category[topCat.key] ?? Icons.category,
@@ -46,8 +48,12 @@ class InsightsScreen extends StatelessWidget {
         ),
         _InsightCard(
           tag: foodPct > 35 ? 'Food alert' : 'Food healthy',
-          tagColor: foodPct > 35 ? const Color(0xFFFCEBEB) : const Color(0xFFEAF3DE),
-          tagTextColor: foodPct > 35 ? const Color(0xFF791F1F) : const Color(0xFF27500A),
+          tagColor: foodPct > 35
+              ? (isDark ? const Color(0xFF4C1D1D) : const Color(0xFFFCEBEB))
+              : (isDark ? const Color(0xFF1A330E) : const Color(0xFFEAF3DE)),
+          tagTextColor: foodPct > 35
+              ? (isDark ? const Color(0xFFFFA5A5) : const Color(0xFF791F1F))
+              : (isDark ? const Color(0xFFAFE08D) : const Color(0xFF27500A)),
           title: foodPct > 35 ? 'Food spend is high at $foodPct%' : 'Food spend is healthy at $foodPct%',
           subtitle: foodPct > 35 ? 'Consider cooking at home to reduce dining costs.' : 'Great job keeping food costs under control.',
           icon: Icons.restaurant_outlined,
@@ -55,14 +61,16 @@ class InsightsScreen extends StatelessWidget {
         ),
         _InsightCard(
           tag: 'Peak day',
-          tagColor: const Color(0xFFFAEEDA), tagTextColor: const Color(0xFF633806),
+          tagColor: isDark ? const Color(0xFF3B2A0F) : const Color(0xFFFAEEDA),
+          tagTextColor: isDark ? const Color(0xFFFCD394) : const Color(0xFF633806),
           title: '$peakDay is your highest spend day',
           subtitle: 'You tend to spend more on ${peakDay}s. Plan ahead to avoid impulse purchases.',
           icon: Icons.calendar_today_outlined, iconColor: AppTheme.warning,
         ),
         _InsightCard(
           tag: 'Tip',
-          tagColor: const Color(0xFFE1F5EE), tagTextColor: const Color(0xFF085041),
+          tagColor: isDark ? const Color(0xFF103328) : const Color(0xFFE1F5EE),
+          tagTextColor: isDark ? const Color(0xFF94FCDA) : const Color(0xFF085041),
           title: 'Track your no-spend days',
           subtitle: 'Building a habit of not spending one day a week can save ₹2,000+ monthly.',
           icon: Icons.emoji_events_outlined, iconColor: AppTheme.success,
@@ -89,7 +97,7 @@ class InsightsScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: e.value / maxM, minHeight: 8,
-                        backgroundColor: const Color(0xFFF1EFE8),
+                        backgroundColor: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
                         valueColor: AlwaysStoppedAnimation(col),
                       ),
                     )),
@@ -111,6 +119,25 @@ class InsightsScreen extends StatelessWidget {
             child: SizedBox(
               height: 150,
               child: BarChart(BarChartData(
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (group) => isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                    tooltipBorder: BorderSide(
+                      color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1),
+                      width: 1,
+                    ),
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      return BarTooltipItem(
+                        '${_weekdays[group.x]}\n₹${rod.toY.toStringAsFixed(2)}',
+                        TextStyle(
+                          color: isDark ? Colors.white : Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      );
+                    },
+                  ),
+                ),
                 barGroups: List.generate(7, (i) => BarChartGroupData(
                   x: i,
                   barRods: [BarChartRodData(

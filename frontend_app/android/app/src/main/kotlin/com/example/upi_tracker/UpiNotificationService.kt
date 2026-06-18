@@ -1,6 +1,9 @@
 package com.example.upi_tracker
 
 import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import io.flutter.plugin.common.MethodChannel
@@ -25,18 +28,23 @@ class UpiNotificationService : NotificationListenerService() {
             "com.phonepe.app"                        to "PhonePe",
             "net.one97.paytm"                        to "Paytm",
             "in.org.npci.upiapp"                     to "BHIM",
-            "in.amazon.mShop.android.shopping"       to "AmazonPay"
+            "in.amazon.mShop.android.shopping"       to "AmazonPay",
+            "com.google.android.apps.messaging"      to "SMS",
+            "com.android.mms"                        to "SMS",
+            "com.samsung.android.messaging"          to "SMS",
+            "com.sec.android.app.messaging"          to "SMS",
+            "com.hmdglobal.messages"                 to "SMS"
         )
 
         private val AMOUNT_PATTERN = Pattern.compile(
             "(?:Rs\\.?|INR|₹)\\s*([\\d,]+(?:\\.\\d{1,2})?)", Pattern.CASE_INSENSITIVE
         )
         private val PAYEE_PATTERN = Pattern.compile(
-            "(?:to|paid to|payment to)\\s+([\\w\\s@.\\-_]+?)(?:\\s+on|\\s+via|\\s+ref|\\s+upi|\$)",
+            "(?:to|paid to|payment to|spent at|spent on|transfer to|info[:\\s]+)\\s+([\\w\\s@.\\-_]+?)(?:\\s+on|\\s+via|\\s+ref|\\s+upi|\\s+linked|\$)",
             Pattern.CASE_INSENSITIVE
         )
         private val REF_PATTERN = Pattern.compile(
-            "(?:ref|upi ref|txn|transaction id)[:\\s#]+([A-Z0-9]+)",
+            "(?:ref|upi ref|txn|transaction id)(?:\\s+no\\.?)?[:\\s#]+([A-Z0-9]+)",
             Pattern.CASE_INSENSITIVE
         )
 
@@ -68,9 +76,98 @@ class UpiNotificationService : NotificationListenerService() {
         serviceScope.launch {
             postToBackend(parsed)
         }
+
+        // Show transaction alert notification if enabled
+        try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+            val enabledAlerts = prefs.getBoolean("flutter.enable_notifications", true)
+            if (enabledAlerts) {
+                val payee = parsed["payee"] as? String ?: "Unknown"
+                val amount = parsed["amount"] as? Double ?: 0.0
+                val category = parsed["category"] as? String ?: "Other"
+                showNotification(payee, amount, category)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("UpiTracker", "Failed checking notification settings: ${e.message}")
+        }
+    }
+
+    private fun showNotification(payee: String, amount: Double, category: String) {
+        try {
+            val context = applicationContext
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channelId = "upi_tracker_alerts"
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    channelId,
+                    "Transaction Alerts",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "Alerts for automatically tracked transactions"
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+
+            var budgetLimitText = "No budget limit set"
+            try {
+                val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+                val budgetsJson = prefs.getString("flutter.budgets", null)
+                if (budgetsJson != null) {
+                    val jsonObject = JSONObject(budgetsJson)
+                    if (jsonObject.has(category)) {
+                        val limit = jsonObject.getDouble(category)
+                        budgetLimitText = "Limit: ₹${String.format("%.2f", limit)}"
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("UpiTracker", "Failed to parse budgets: ${e.message}")
+            }
+
+            val builder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                android.app.Notification.Builder(context, channelId)
+            } else {
+                @Suppress("DEPRECATION")
+                android.app.Notification.Builder(context)
+            }
+
+            val iconId = context.resources.getIdentifier("launcher_icon", "mipmap", context.packageName)
+            val smallIcon = if (iconId != 0) iconId else android.R.drawable.ic_dialog_info
+
+            builder.setSmallIcon(smallIcon)
+                .setContentTitle("Spent ₹${String.format("%.2f", amount)}")
+                .setContentText("Paid to $payee • $category")
+                .setStyle(android.app.Notification.BigTextStyle()
+                    .bigText("Paid to: $payee\nCategory: $category\nBudget $budgetLimitText"))
+                .setAutoCancel(true)
+
+            // Trigger notification
+            val notificationId = (payee.hashCode() + amount.hashCode() + System.currentTimeMillis().hashCode())
+            notificationManager.notify(notificationId, builder.build())
+        } catch (e: Exception) {
+            android.util.Log.e("UpiTracker", "Failed to show notification: ${e.message}")
+        }
     }
 
     private fun parseUpi(text: String, appName: String): Map<String, Any>? {
+        val lowerText = text.lowercase()
+
+        // Filter out incoming/credit transactions
+        val isIncoming = lowerText.contains("received") ||
+                lowerText.contains("refund") ||
+                lowerText.contains("deposited") ||
+                lowerText.contains("added") ||
+                lowerText.contains("paid you") ||
+                lowerText.contains("payment from") ||
+                (lowerText.contains("credited") && 
+                 !lowerText.contains("debited") && 
+                 !lowerText.contains("paid") && 
+                 !lowerText.contains("sent"))
+
+        if (isIncoming) {
+            return null
+        }
+
         val amountMatcher = AMOUNT_PATTERN.matcher(text)
         if (!amountMatcher.find()) return null
         val amount = amountMatcher.group(1)?.replace(",", "")?.toDoubleOrNull() ?: return null

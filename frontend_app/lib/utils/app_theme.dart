@@ -64,12 +64,36 @@ class AppTheme {
       elevation: 0,
       titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
     ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Color(0xFF1A1A1A),
+      selectedItemColor: Color(0xFF64B5F6),
+      unselectedItemColor: Color(0xFF9E9E9E),
+      type: BottomNavigationBarType.fixed,
+      elevation: 8,
+    ),
     cardTheme: CardThemeData(
       elevation: 0,
       color: const Color(0xFF1E1E1E),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 0.5),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color(0xFF1A1A1A),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF64B5F6), width: 1.5)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF64B5F6),
+        foregroundColor: Colors.black,
+        minimumSize: const Size.fromHeight(50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 0,
       ),
     ),
   );
@@ -102,6 +126,8 @@ class AppColors {
     'Paytm':     Color(0xFF854F0B),
     'BHIM':      Color(0xFF0F6E56),
     'AmazonPay': Color(0xFF993C1D),
+    'SMS':       Color(0xFF673AB7),
+    'Other':     Color(0xFF888780),
   };
 }
 
@@ -119,7 +145,7 @@ class AppIcons {
 }
 
 const kCategories = ['Food & Dining','Transport','Grocery','Bills','Health','Shopping','Transfer','Other'];
-const kUpiApps    = ['GPay','PhonePe','Paytm','BHIM','AmazonPay'];
+const kUpiApps    = ['GPay','PhonePe','Paytm','BHIM','AmazonPay','SMS','Other'];
 const kBudgets    = {
   'Food & Dining': 3000.0,
   'Transport':     1500.0,

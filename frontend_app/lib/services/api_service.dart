@@ -61,6 +61,7 @@ class ApiService {
     await _storage.delete(key: 'jwt');
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('jwt');
+    await prefs.remove('cached_user');
   }
 
   Future<bool> isLoggedIn() async => (await _storage.read(key: 'jwt')) != null;

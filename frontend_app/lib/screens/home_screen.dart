@@ -1,11 +1,11 @@
-﻿import 'package:fl_chart/fl_chart.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
-import '../services/api_service.dart';
 import '../utils/app_theme.dart';
 import '../widgets/common_widgets.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,32 +16,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _showLine = false;
 
-  Future<void> _confirmLogout(BuildContext context) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Log out'),
-        content: const Text('Are you sure you want to log out?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Log out', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-    if (ok == true && context.mounted) {
-      await ApiService().logout();
-      if (context.mounted) Navigator.pushReplacementNamed(context, '/login');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final p    = context.watch<ExpenseProvider>();
     final now  = DateTime.now();
     final days = DateUtils.getDaysInMonth(p.selectedYear, p.selectedMonth);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Daily data
     final dailyMap = <int, double>{};
@@ -52,7 +32,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final maxCat  = cats.isEmpty ? 1.0 : cats.first.value;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
       appBar: AppBar(
         title: const Text('Overview'),
         actions: [
@@ -62,7 +41,15 @@ class _HomeScreenState extends State<HomeScreen> {
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: '${p.selectedMonth}/${p.selectedYear}',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF1A1A1A)),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                iconEnabledColor: Theme.of(context).colorScheme.onSurface,
+                dropdownColor: Theme.of(context).brightness == Brightness.dark 
+                    ? const Color(0xFF1E1E1E) 
+                    : Colors.white,
                 items: List.generate(12, (i) {
                   final d = DateTime(now.year, now.month - i);
                   return DropdownMenuItem(
@@ -77,11 +64,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          // Logout (#4)
+          // Settings button
           IconButton(
-            icon: const Icon(Icons.logout, size: 20),
-            tooltip: 'Log out',
-            onPressed: () => _confirmLogout(context),
+            icon: const Icon(Icons.settings, size: 20),
+            tooltip: 'Settings',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
           ),
         ],
       ),
@@ -141,6 +131,27 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 160,
                       child: _showLine
                           ? LineChart(LineChartData(
+                              lineTouchData: LineTouchData(
+                                touchTooltipData: LineTouchTooltipData(
+                                  getTooltipColor: (spot) => isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                                  tooltipBorder: BorderSide(
+                                    color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1),
+                                    width: 1,
+                                  ),
+                                  getTooltipItems: (touchedSpots) {
+                                    return touchedSpots.map((spot) {
+                                      return LineTooltipItem(
+                                        'Day ${spot.x.toInt()}\n₹${spot.y.toStringAsFixed(2)}',
+                                        TextStyle(
+                                          color: isDark ? Colors.white : Colors.black,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      );
+                                    }).toList();
+                                  },
+                                ),
+                              ),
                               lineBarsData: [LineChartBarData(
                                 spots: List.generate(days, (i) => FlSpot((i+1).toDouble(), dailyMap[i+1] ?? 0)),
                                 isCurved: true, color: AppTheme.primary, barWidth: 2,
@@ -152,6 +163,25 @@ class _HomeScreenState extends State<HomeScreen> {
                               borderData: FlBorderData(show: false),
                             ))
                           : BarChart(BarChartData(
+                              barTouchData: BarTouchData(
+                                touchTooltipData: BarTouchTooltipData(
+                                  getTooltipColor: (group) => isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                                  tooltipBorder: BorderSide(
+                                    color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1),
+                                    width: 1,
+                                  ),
+                                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                    return BarTooltipItem(
+                                      'Day ${group.x}\n₹${rod.toY.toStringAsFixed(2)}',
+                                      TextStyle(
+                                        color: isDark ? Colors.white : Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
                               barGroups: List.generate(days, (i) => BarChartGroupData(
                                 x: i + 1,
                                 barRods: [BarChartRodData(toY: dailyMap[i+1] ?? 0, color: AppTheme.primary.withValues(alpha: 0.5), width: 6, borderRadius: BorderRadius.circular(3))],

@@ -5,7 +5,7 @@ const CATEGORIES = [
   'Health', 'Shopping', 'Transfer', 'Other'
 ];
 
-const UPI_APPS = ['GPay', 'PhonePe', 'Paytm', 'BHIM', 'AmazonPay', 'Other'];
+const UPI_APPS = ['GPay', 'PhonePe', 'Paytm', 'BHIM', 'AmazonPay', 'SMS', 'Other'];
 
 const ExpenseSchema = new mongoose.Schema({
   userId: {

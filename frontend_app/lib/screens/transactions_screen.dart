@@ -55,7 +55,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
               ),
             ),
@@ -142,8 +142,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.black.withValues(alpha: 0.07))),
+              color: Theme.of(context).colorScheme.surface,
+              border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4))),
             ),
             child: Row(children: [
               Text('${list.length} transactions', style: const TextStyle(fontSize: 12, color: Color(0xFF888780))),

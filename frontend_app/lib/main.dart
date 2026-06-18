@@ -46,17 +46,19 @@ class UpiTrackerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => ExpenseProvider()..initNotificationListener(),
-      child: MaterialApp(
-        title: 'UPI Tracker',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
-        darkTheme: AppTheme.dark(),
-        themeMode: ThemeMode.system,
-        home: const _Splash(),
-        routes: {
-          '/home':  (_) => const MainShell(),
-          '/login': (_) => const LoginScreen(),
-        },
+      child: Consumer<ExpenseProvider>(
+        builder: (context, p, _) => MaterialApp(
+          title: 'UPI Tracker',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          themeMode: p.themeMode,
+          home: const _Splash(),
+          routes: {
+            '/home':  (_) => const MainShell(),
+            '/login': (_) => const LoginScreen(),
+          },
+        ),
       ),
     );
   }
@@ -120,7 +122,7 @@ class _MainShellState extends State<MainShell> {
       body: IndexedStack(index: p.currentTab, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.black.withValues(alpha: 0.08), width: 0.5)),
+          border: Border(top: BorderSide(color: Theme.of(context).dividerColor, width: 0.5)),
         ),
         child: BottomNavigationBar(
           currentIndex: p.currentTab,

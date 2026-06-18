@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/expense.dart';
@@ -20,6 +20,44 @@ class ExpenseProvider extends ChangeNotifier {
   // ── Global tab index (fixes #5 - "See all" navigation) ──────────────────────
   int currentTab = 0;
   void setTab(int t) { currentTab = t; notifyListeners(); }
+
+  // ── Theme mode ─────────────────────────────────────────────────────────────
+  ThemeMode themeMode = ThemeMode.system;
+
+  void setThemeMode(ThemeMode mode) async {
+    themeMode = mode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('theme_mode', mode.name);
+    notifyListeners();
+  }
+
+  // ── Notification Alerts ───────────────────────────────────────────────────
+  bool enableNotifications = true;
+
+  void setEnableNotifications(bool val) async {
+    enableNotifications = val;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('enable_notifications', val);
+    notifyListeners();
+  }
+
+  // ── Current user profile ───────────────────────────────────────────────────
+  Map<String, dynamic>? currentUser;
+
+  Future<String?> updateUserProfile(String name, String phone) async {
+    try {
+      final res = await _api.updateProfile(name: name, phone: phone);
+      currentUser = res['user'] as Map<String, dynamic>?;
+      if (currentUser != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cached_user', jsonEncode(currentUser));
+      }
+      notifyListeners();
+      return null;
+    } on Exception catch (e) {
+      return _friendlyError(e);
+    }
+  }
 
   // ── Persisted budgets (#13) ──────────────────────────────────────────────────
   Map<String, double> budgets = {
@@ -55,6 +93,22 @@ class ExpenseProvider extends ChangeNotifier {
       goals = [SavingsGoal(name: 'Emergency fund', target: 50000, saved: 0)];
       await _saveGoals();
     }
+
+    // Load theme mode
+    final themeStr = prefs.getString('theme_mode');
+    if (themeStr != null) {
+      themeMode = ThemeMode.values.firstWhere((e) => e.name == themeStr, orElse: () => ThemeMode.system);
+    }
+
+    // Load notification alert preference
+    enableNotifications = prefs.getBool('enable_notifications') ?? true;
+
+    // Load cached user profile
+    final userJson = prefs.getString('cached_user');
+    if (userJson != null) {
+      currentUser = jsonDecode(userJson) as Map<String, dynamic>?;
+    }
+
     notifyListeners();
   }
 
@@ -173,6 +227,14 @@ class ExpenseProvider extends ChangeNotifier {
     loading = true; error = null; notifyListeners();
     try {
       expenses = await _api.getExpenses(month: selectedMonth, year: selectedYear, limit: 500);
+      try {
+        final profile = await _api.getMe();
+        currentUser = profile['user'] as Map<String, dynamic>?;
+        if (currentUser != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('cached_user', jsonEncode(currentUser));
+        }
+      } catch (_) {}
     } catch (e) {
       error = _friendlyError(e as Exception);
     } finally {
