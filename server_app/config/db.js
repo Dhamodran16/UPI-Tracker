@@ -1,7 +1,8 @@
-﻿const admin = require('firebase-admin');
+const admin = require('firebase-admin');
+const { getApps } = require('firebase-admin/app');
 
 const connectDB = () => {
-  if (admin.apps.length === 0) {
+  if (getApps().length === 0) {
     const projectId = process.env.FIREBASE_PROJECT_ID;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     let privateKey = process.env.FIREBASE_PRIVATE_KEY;
@@ -37,7 +38,7 @@ const connectDB = () => {
 };
 
 const getDb = () => {
-  if (admin.apps.length === 0) {
+  if (getApps().length === 0) {
     return connectDB();
   }
   return admin.firestore();
