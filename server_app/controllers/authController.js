@@ -18,6 +18,9 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    connectionTimeout: 5000, // 5 seconds connection timeout
+    greetingTimeout: 5000,   // 5 seconds greeting timeout
+    socketTimeout: 5000,     // 5 seconds socket inactivity timeout
   });
 }
 
@@ -103,8 +106,10 @@ const register = async (req, res) => {
       createdAt: new Date().toISOString()
     });
 
-    // Send email OTP
-    await sendEmailOTP(email.toLowerCase().trim(), otp);
+    // Send email OTP in the background (non-blocking) to prevent client timeouts
+    sendEmailOTP(email.toLowerCase().trim(), otp).catch(mailErr => {
+      console.error(`[SMTP Background Error] Failed to send registration email to ${email}:`, mailErr.message);
+    });
 
     res.status(201).json({
       message: 'OTP sent to email successfully',
@@ -156,8 +161,10 @@ const login = async (req, res) => {
       otpExpires
     });
 
-    // Send real OTP dynamically based on email
-    await sendEmailOTP(userData.email, otp);
+    // Send real OTP dynamically based on email in the background (non-blocking)
+    sendEmailOTP(userData.email, otp).catch(mailErr => {
+      console.error(`[SMTP Background Error] Failed to send login email to ${userData.email}:`, mailErr.message);
+    });
 
     res.json({
       message: 'OTP sent successfully',
