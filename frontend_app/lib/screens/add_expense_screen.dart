@@ -11,7 +11,7 @@ class AddExpenseScreen extends StatefulWidget {
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
 }
 
-class _AddExpenseScreenState extends State<AddExpenseScreen> {
+class _AddExpenseScreenState extends State<AddExpenseScreen> with WidgetsBindingObserver {
   // #11 fix — Form with GlobalKey for inline validation
   final _formKey = GlobalKey<FormState>();
   final _name    = TextEditingController();
@@ -22,16 +22,38 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String   _app  = 'GPay';
   DateTime _date = DateTime.now();
   bool _saving   = false;
-  late Future<bool> _permFuture;
+  bool _hasPermission = true;
 
   @override
   void initState() {
     super.initState();
-    _permFuture = NotificationService.isPermissionGranted();
+    WidgetsBinding.instance.addObserver(this);
+    _checkPermission();
   }
 
   @override
-  void dispose() { _name.dispose(); _amount.dispose(); _ref.dispose(); _note.dispose(); super.dispose(); }
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _name.dispose();
+    _amount.dispose();
+    _ref.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPermission();
+    }
+  }
+
+  Future<void> _checkPermission() async {
+    final granted = await NotificationService.isPermissionGranted();
+    if (mounted) {
+      setState(() => _hasPermission = granted);
+    }
+  }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(context: context, initialDate: _date,
@@ -75,31 +97,27 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         child: ListView(padding: const EdgeInsets.all(16), children: [
 
           // Notification permission banner
-          FutureBuilder<bool>(
-            future: _permFuture,
-            builder: (_, snap) {
-              if (snap.data == true) return const SizedBox.shrink();
-              return Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFAEEDA),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFBA7517).withValues(alpha: 0.3)),
-                ),
-                child: Row(children: [
-                  const Icon(Icons.notifications_outlined, color: Color(0xFFBA7517), size: 20),
-                  const SizedBox(width: 10),
-                  const Expanded(child: Text('Enable notification access for auto-tracking', style: TextStyle(fontSize: 13, color: Color(0xFF633806)))),
-                  TextButton(onPressed: NotificationService.openNotificationSettings, child: const Text('Enable', style: TextStyle(fontSize: 12))),
-                ]),
-              );
-            },
-          ),
+          if (!_hasPermission)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAEEDA),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFBA7517).withValues(alpha: 0.3)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.notifications_outlined, color: Color(0xFFBA7517), size: 20),
+                const SizedBox(width: 10),
+                const Expanded(child: Text('Enable notification access for auto-tracking', style: TextStyle(fontSize: 13, color: Color(0xFF633806)))),
+                TextButton(onPressed: NotificationService.openNotificationSettings, child: const Text('Enable', style: TextStyle(fontSize: 12))),
+              ]),
+            ),
 
           _label('Payee / merchant'),
           TextFormField(
             controller: _name,
+            style: const TextStyle(fontSize: 16),
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(hintText: 'e.g. Swiggy, Petrol bunk…'),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Payee name is required' : null,
@@ -109,6 +127,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           _label('Amount (₹)'),
           TextFormField(
             controller: _amount,
+            style: const TextStyle(fontSize: 16),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(hintText: '0', prefixText: '₹ '),
             validator: (v) {
@@ -134,7 +153,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   child: Row(children: [
                     const Icon(Icons.calendar_today_outlined, size: 16, color: Color(0xFF888780)),
                     const SizedBox(width: 8),
-                    Text('${_date.day}/${_date.month}/${_date.year}', style: const TextStyle(fontSize: 14)),
+                    Text('${_date.day}/${_date.month}/${_date.year}', style: const TextStyle(fontSize: 16)),
                   ]),
                 ),
               ),
@@ -142,10 +161,31 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               _label('UPI app'),
-              DropdownButtonFormField<String>(
-                value: _app, decoration: const InputDecoration(),
-                items: kUpiApps.map((a) => DropdownMenuItem(value: a, child: Text(a, style: const TextStyle(fontSize: 14)))).toList(),
-                onChanged: (v) => setState(() => _app = v!),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _app,
+                    isExpanded: true,
+                    isDense: true,
+                    dropdownColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.white,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                    icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF888780)),
+                    items: kUpiApps.map((a) => DropdownMenuItem(
+                      value: a,
+                      child: Text(a, style: const TextStyle(fontSize: 16)),
+                    )).toList(),
+                    onChanged: (v) => setState(() => _app = v!),
+                  ),
+                ),
               ),
             ])),
           ]),
@@ -176,11 +216,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           const SizedBox(height: 14),
 
           _label('UPI ref (optional)'),
-          TextField(controller: _ref, decoration: const InputDecoration(hintText: 'e.g. 406123456789')),
+          TextField(
+            controller: _ref,
+            style: const TextStyle(fontSize: 16),
+            decoration: const InputDecoration(hintText: 'e.g. 406123456789'),
+          ),
           const SizedBox(height: 14),
 
           _label('Note (optional)'),
-          TextField(controller: _note, decoration: const InputDecoration(hintText: 'Add a note…'), maxLines: 2),
+          TextField(
+            controller: _note,
+            style: const TextStyle(fontSize: 16),
+            decoration: const InputDecoration(hintText: 'Add a note…'),
+            maxLines: 2,
+          ),
           const SizedBox(height: 24),
 
           ElevatedButton.icon(
@@ -198,6 +247,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   Widget _label(String t) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
-    child: Text(t, style: const TextStyle(fontSize: 12, color: Color(0xFF888780), fontWeight: FontWeight.w500)),
+    child: Text(t, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
   );
 }

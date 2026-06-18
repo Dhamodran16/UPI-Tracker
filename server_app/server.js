@@ -1,4 +1,4 @@
-﻿const dns = require('dns');
+const dns = require('dns');
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 require('dotenv').config();
@@ -7,7 +7,7 @@ const cors      = require('cors');
 const helmet    = require('helmet');
 const morgan    = require('morgan');
 const rateLimit = require('express-rate-limit');
-const connectDB = require('./config/db');
+const { connectDB } = require('./config/db');
 
 const app = express();
 const isProd = process.env.NODE_ENV === 'production';

@@ -41,8 +41,8 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
       'category': _cat,
       'upiApp':   _app,
       'date':     _date.toIso8601String(),
-      if (_ref.text.trim().isNotEmpty) 'upiRef': _ref.text.trim(),
-      if (_note.text.trim().isNotEmpty) 'note':  _note.text.trim(),
+      'upiRef':   _ref.text.trim().isEmpty ? null : _ref.text.trim(),
+      'note':     _note.text.trim().isEmpty ? null : _note.text.trim(),
     };
 
     final err = await context.read<ExpenseProvider>().updateExpense(widget.expense.id!, data);
@@ -79,6 +79,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
           _label('Payee / merchant'),
           TextFormField(
             controller: _name,
+            style: const TextStyle(fontSize: 16),
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(hintText: 'e.g. Swiggy'),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Payee is required' : null,
@@ -88,6 +89,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
           _label('Amount (₹)'),
           TextFormField(
             controller: _amount,
+            style: const TextStyle(fontSize: 16),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(hintText: '0.00', prefixText: '₹ '),
             validator: (v) {
@@ -113,7 +115,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                   child: Row(children: [
                     const Icon(Icons.calendar_today_outlined, size: 16, color: Color(0xFF888780)),
                     const SizedBox(width: 8),
-                    Text('${_date.day}/${_date.month}/${_date.year}', style: const TextStyle(fontSize: 14)),
+                    Text('${_date.day}/${_date.month}/${_date.year}', style: const TextStyle(fontSize: 16)),
                   ]),
                 ),
               ),
@@ -121,10 +123,31 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               _label('UPI app'),
-              DropdownButtonFormField<String>(
-                value: _app, decoration: const InputDecoration(),
-                items: kUpiApps.map((a) => DropdownMenuItem(value: a, child: Text(a, style: const TextStyle(fontSize: 14)))).toList(),
-                onChanged: (v) => setState(() => _app = v!),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _app,
+                    isExpanded: true,
+                    isDense: true,
+                    dropdownColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.white,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                    icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF888780)),
+                    items: kUpiApps.map((a) => DropdownMenuItem(
+                      value: a,
+                      child: Text(a, style: const TextStyle(fontSize: 16)),
+                    )).toList(),
+                    onChanged: (v) => setState(() => _app = v!),
+                  ),
+                ),
               ),
             ])),
           ]),
@@ -155,11 +178,20 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
           const SizedBox(height: 14),
 
           _label('UPI ref (optional)'),
-          TextField(controller: _ref, decoration: const InputDecoration(hintText: 'e.g. 406123456789')),
+          TextField(
+            controller: _ref,
+            style: const TextStyle(fontSize: 16),
+            decoration: const InputDecoration(hintText: 'e.g. 406123456789'),
+          ),
           const SizedBox(height: 14),
 
           _label('Note (optional)'),
-          TextField(controller: _note, decoration: const InputDecoration(hintText: 'Add a note…'), maxLines: 2),
+          TextField(
+            controller: _note,
+            style: const TextStyle(fontSize: 16),
+            decoration: const InputDecoration(hintText: 'Add a note…'),
+            maxLines: 2,
+          ),
           const SizedBox(height: 30),
         ]),
       ),
@@ -168,6 +200,6 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
 
   Widget _label(String t) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
-    child: Text(t, style: const TextStyle(fontSize: 12, color: Color(0xFF888780), fontWeight: FontWeight.w500)),
+    child: Text(t, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
   );
 }

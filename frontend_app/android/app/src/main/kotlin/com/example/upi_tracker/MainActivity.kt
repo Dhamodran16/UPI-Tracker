@@ -16,10 +16,16 @@ class MainActivity : FlutterActivity() {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "isPermissionGranted" -> {
-                    val enabled = android.provider.Settings.Secure.getString(
-                        contentResolver,
-                        "enabled_notification_listeners"
-                    )?.contains(packageName) == true
+                    val enabled = try {
+                        androidx.core.app.NotificationManagerCompat
+                            .getEnabledListenerPackages(applicationContext)
+                            .contains(packageName)
+                    } catch (e: Exception) {
+                        android.provider.Settings.Secure.getString(
+                            contentResolver,
+                            "enabled_notification_listeners"
+                        )?.contains(packageName) == true
+                    }
                     result.success(enabled)
                 }
                 "openNotificationSettings" -> {

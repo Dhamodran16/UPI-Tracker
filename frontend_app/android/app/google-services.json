@@ -1,0 +1,34 @@
+{
+  "project_info": {
+    "project_number": "9541808845",
+    "project_id": "careersync-8518c",
+    "storage_bucket": "careersync-8518c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:9541808845:android:124650e0c66d490e932f84",
+        "android_client_info": {
+          "package_name": "com.careersync.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAm0qkJrmYC0xKDaASJPK_gMuDO8G08wpk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "9541808845-vhbcd1lqo02s9p10ngfmtfqp3t3rtpfj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

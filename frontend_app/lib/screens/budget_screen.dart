@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../utils/app_theme.dart';
@@ -10,22 +10,35 @@ class BudgetScreen extends StatelessWidget {
   // #1 — Edit budget limit dialog
   Future<void> _showEditBudgetDialog(BuildContext context, ExpenseProvider p, String category, double current) async {
     final ctrl = TextEditingController(text: current.toStringAsFixed(0));
+    final formKey = GlobalKey<FormState>();
     await showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: Text('Edit $category budget'),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Monthly limit (₹)', prefixText: '₹ '),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: ctrl,
+            style: const TextStyle(fontSize: 16),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Monthly limit (₹)', prefixText: '₹ '),
+            validator: (v) {
+              final n = double.tryParse(v ?? '');
+              if (n == null || n <= 0) return 'Enter a valid amount greater than 0';
+              return null;
+            },
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              final v = double.tryParse(ctrl.text);
-              if (v != null && v > 0) { p.setBudget(category, v); Navigator.pop(context); }
+              if (formKey.currentState!.validate()) {
+                final v = double.parse(ctrl.text);
+                p.setBudget(category, v);
+                Navigator.pop(ctx);
+              }
             },
             child: const Text('Save'),
           ),
@@ -38,22 +51,35 @@ class BudgetScreen extends StatelessWidget {
   // #2 — Update goal saved amount dialog
   Future<void> _showUpdateGoalDialog(BuildContext context, ExpenseProvider p, int idx) async {
     final ctrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
     await showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: Text('Add to "${p.goals[idx].name}"'),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Amount saved (₹)', prefixText: '₹ '),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: ctrl,
+            style: const TextStyle(fontSize: 16),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Amount saved (₹)', prefixText: '₹ '),
+            validator: (v) {
+              final n = double.tryParse(v ?? '');
+              if (n == null || n <= 0) return 'Enter a valid amount greater than 0';
+              return null;
+            },
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              final v = double.tryParse(ctrl.text);
-              if (v != null && v > 0) { p.updateGoalSaved(idx, v); Navigator.pop(context); }
+              if (formKey.currentState!.validate()) {
+                final v = double.parse(ctrl.text);
+                p.updateGoalSaved(idx, v);
+                Navigator.pop(ctx);
+              }
             },
             child: const Text('Add'),
           ),
@@ -67,25 +93,44 @@ class BudgetScreen extends StatelessWidget {
   Future<void> _showAddGoalDialog(BuildContext context, ExpenseProvider p) async {
     final nameCtrl   = TextEditingController();
     final targetCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
     await showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('New savings goal'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: nameCtrl,   autofocus: true, decoration: const InputDecoration(labelText: 'Goal name')),
-          const SizedBox(height: 12),
-          TextField(controller: targetCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Target amount (₹)', prefixText: '₹ ')),
-        ]),
+        content: Form(
+          key: formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextFormField(
+              controller: nameCtrl,
+              style: const TextStyle(fontSize: 16),
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Goal name'),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Goal name is required' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: targetCtrl,
+              style: const TextStyle(fontSize: 16),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Target amount (₹)', prefixText: '₹ '),
+              validator: (v) {
+                final n = double.tryParse(v ?? '');
+                if (n == null || n <= 0) return 'Enter a valid target amount greater than 0';
+                return null;
+              },
+            ),
+          ]),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              final name   = nameCtrl.text.trim();
-              final target = double.tryParse(targetCtrl.text);
-              if (name.isNotEmpty && target != null && target > 0) {
+              if (formKey.currentState!.validate()) {
+                final name   = nameCtrl.text.trim();
+                final target = double.parse(targetCtrl.text);
                 p.addGoal(name, target);
-                Navigator.pop(context);
+                Navigator.pop(ctx);
               }
             },
             child: const Text('Add'),
@@ -141,7 +186,7 @@ class BudgetScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                   ClipRRect(borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(value: pct, minHeight: 8,
-                      backgroundColor: const Color(0xFFF1EFE8), valueColor: AlwaysStoppedAnimation(col)),
+                      backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08), valueColor: AlwaysStoppedAnimation(col)),
                   ),
                   const SizedBox(height: 6),
                   Row(children: [
@@ -194,6 +239,19 @@ class BudgetScreen extends StatelessWidget {
                 color: AppTheme.danger,
                 child: const Icon(Icons.delete_outline, color: Colors.white),
               ),
+              confirmDismiss: (_) async {
+                return await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Delete savings goal?'),
+                    content: Text('Remove "${g.name}" goal?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(context, true),  child: const Text('Delete', style: TextStyle(color: AppTheme.danger))),
+                    ],
+                  ),
+                );
+              },
               onDismissed: (_) => p.removeGoal(idx), // #3 — delete goal
               child: Card(
                 margin: const EdgeInsets.only(bottom: 10),
@@ -221,7 +279,7 @@ class BudgetScreen extends StatelessWidget {
                     const SizedBox(height: 10),
                     ClipRRect(borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(value: g.percent, minHeight: 8,
-                        backgroundColor: const Color(0xFFF1EFE8),
+                        backgroundColor: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
                         valueColor: const AlwaysStoppedAnimation(AppTheme.success)),
                     ),
                     const SizedBox(height: 6),

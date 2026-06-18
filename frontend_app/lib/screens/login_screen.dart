@@ -1,5 +1,7 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../main.dart';
 import '../services/api_service.dart';
 import '../utils/app_theme.dart';
 
@@ -14,27 +16,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   // Login form
   final _loginFormKey = GlobalKey<FormState>();
-  final _email  = TextEditingController();
-  final _pass   = TextEditingController();
+  final _emailOrPhone = TextEditingController();
 
   // Register form
   final _regFormKey = GlobalKey<FormState>();
-  final _name    = TextEditingController();
-  final _rEmail  = TextEditingController();
-  final _rPass   = TextEditingController();
-  final _rPassC  = TextEditingController();  // #19 confirm password
-  final _phone   = TextEditingController();  // #16 phone field
+  final _name       = TextEditingController();
+  final _rEmail     = TextEditingController();
+  final _phone      = TextEditingController();
 
-  bool _loading  = false;
-  bool _obscure  = true;
-  bool _rObscure = true;
+  bool _loading = false;
 
   @override
   void dispose() {
     _tabs.dispose();
-    _email.dispose();  _pass.dispose();
-    _name.dispose();   _rEmail.dispose();
-    _rPass.dispose();  _rPassC.dispose(); _phone.dispose();
+    _emailOrPhone.dispose();
+    _name.dispose();
+    _rEmail.dispose();
+    _phone.dispose();
     super.dispose();
   }
 
@@ -50,12 +48,346 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     return e.toString();
   }
 
+  Future<void> _showOtpDialog(String identifier) async {
+    final otpCtrl = TextEditingController();
+    final dialogFormKey = GlobalKey<FormState>();
+    bool verLoading = false;
+    String? verError;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Enter OTP'),
+              content: Form(
+                key: dialogFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'We have sent a 6-digit OTP to $identifier',
+                      style: const TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: otpCtrl,
+                      style: const TextStyle(fontSize: 16),
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      decoration: InputDecoration(
+                        labelText: 'Verification Code',
+                        prefixIcon: const Icon(Icons.lock_open_outlined),
+                        errorText: verError,
+                        counterText: '',
+                      ),
+                      validator: (v) => (v == null || v.trim().length != 6) ? 'Enter a 6-digit OTP' : null,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: verLoading ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: verLoading
+                      ? null
+                      : () async {
+                          if (!dialogFormKey.currentState!.validate()) return;
+                          setState(() {
+                            verLoading = true;
+                            verError = null;
+                          });
+                          try {
+                            await ApiService().verifyOtp(identifier, otpCtrl.text.trim());
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx); // close dialog
+                              Navigator.pushReplacementNamed(context, '/home');
+                            }
+                          } catch (e) {
+                            setState(() {
+                              verLoading = false;
+                              verError = _parseError(e);
+                            });
+                          }
+                        },
+                  child: verLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Verify'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    otpCtrl.dispose();
+  }
+
+  Future<void> _showFirebaseOtpDialog(String verificationId, String phone) async {
+    final otpCtrl = TextEditingController();
+    final dialogFormKey = GlobalKey<FormState>();
+    bool verLoading = false;
+    String? verError;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Enter SMS OTP'),
+              content: Form(
+                key: dialogFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Enter the 6-digit code sent to $phone',
+                      style: const TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: otpCtrl,
+                      style: const TextStyle(fontSize: 16),
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      decoration: InputDecoration(
+                        labelText: 'Verification Code',
+                        prefixIcon: const Icon(Icons.lock_open_outlined),
+                        errorText: verError,
+                        counterText: '',
+                      ),
+                      validator: (v) => (v == null || v.trim().length != 6) ? 'Enter a 6-digit OTP' : null,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: verLoading ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: verLoading
+                      ? null
+                      : () async {
+                          if (!dialogFormKey.currentState!.validate()) return;
+                          setState(() {
+                            verLoading = true;
+                            verError = null;
+                          });
+                          try {
+                            final credential = PhoneAuthProvider.credential(
+                              verificationId: verificationId,
+                              smsCode: otpCtrl.text.trim(),
+                            );
+                            final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+                            final idToken = await userCredential.user?.getIdToken();
+                            if (idToken != null) {
+                              final res = await ApiService().verifyFirebaseToken(idToken);
+                              if (res['newUser'] == true) {
+                                Navigator.pop(ctx);
+                                await _showNewUserRegistrationDialog(idToken);
+                              } else {
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx); // close dialog
+                                  Navigator.pushReplacementNamed(context, '/home');
+                                }
+                              }
+                            } else {
+                              throw Exception('Could not retrieve Firebase ID Token.');
+                            }
+                          } catch (e) {
+                            setState(() {
+                              verLoading = false;
+                              verError = _parseError(e);
+                            });
+                          }
+                        },
+                  child: verLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Verify'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    otpCtrl.dispose();
+  }
+
+  Future<void> _showNewUserRegistrationDialog(String idToken) async {
+    final nameCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final regFormKey = GlobalKey<FormState>();
+    bool regLoading = false;
+    String? regError;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Complete Profile'),
+              content: Form(
+                key: regFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Please provide your name and email to finish setting up your account.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: nameCtrl,
+                      style: const TextStyle(fontSize: 16),
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Full Name',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: emailCtrl,
+                      style: const TextStyle(fontSize: 16),
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Email Address',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      validator: (v) => (v == null || !v.contains('@') || !v.contains('.')) ? 'Enter a valid email' : null,
+                    ),
+                    if (regError != null) ...[
+                      const SizedBox(height: 8),
+                      Text(regError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: regLoading ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: regLoading
+                      ? null
+                      : () async {
+                          if (!regFormKey.currentState!.validate()) return;
+                          setState(() {
+                            regLoading = true;
+                            regError = null;
+                          });
+                          try {
+                            await ApiService().verifyFirebaseToken(
+                              idToken,
+                              name: nameCtrl.text.trim(),
+                              email: emailCtrl.text.trim(),
+                            );
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                              Navigator.pushReplacementNamed(context, '/home');
+                            }
+                          } catch (e) {
+                            setState(() {
+                              regLoading = false;
+                              regError = _parseError(e);
+                            });
+                          }
+                        },
+                  child: regLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Register'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    nameCtrl.dispose();
+    emailCtrl.dispose();
+  }
+
+  Future<void> _loginWithFirebasePhone(String phone) async {
+    String formattedPhone = phone;
+    if (!phone.startsWith('+')) {
+      formattedPhone = '+91$phone';
+    }
+
+    final auth = FirebaseAuth.instance;
+    await auth.verifyPhoneNumber(
+      phoneNumber: formattedPhone,
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        final userCredential = await auth.signInWithCredential(credential);
+        final idToken = await userCredential.user?.getIdToken();
+        if (idToken != null) {
+          final res = await ApiService().verifyFirebaseToken(idToken);
+          if (res['newUser'] == true) {
+            await _showNewUserRegistrationDialog(idToken);
+          } else {
+            if (mounted) {
+              Navigator.pushReplacementNamed(context, '/home');
+            }
+          }
+        }
+      },
+      verificationFailed: (FirebaseAuthException e) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Verification failed')));
+      },
+      codeSent: (String verificationId, int? resendToken) async {
+        await _showFirebaseOtpDialog(verificationId, formattedPhone);
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {},
+    );
+  }
+
   Future<void> _login() async {
     if (!_loginFormKey.currentState!.validate()) return;
     setState(() => _loading = true);
+    final identifier = _emailOrPhone.text.trim();
+    final isEmail = identifier.contains('@');
+
+    if (!isEmail) {
+      try {
+        await _loginWithFirebasePhone(identifier);
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_parseError(e))));
+      } finally {
+        if (mounted) setState(() => _loading = false);
+      }
+      return;
+    }
+
     try {
-      await ApiService().login(_email.text.trim(), _pass.text);
-      if (mounted) Navigator.pushReplacementNamed(context, '/home');
+      final res = await ApiService().login(identifier);
+      if (mounted) {
+        await _showOtpDialog(identifier);
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_parseError(e))));
     } finally {
@@ -66,14 +398,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Future<void> _register() async {
     if (!_regFormKey.currentState!.validate()) return;
     setState(() => _loading = true);
+    final name = _name.text.trim();
+    final email = _rEmail.text.trim();
+    final phone = _phone.text.trim();
     try {
-      await ApiService().register(
-        _name.text.trim(),
-        _rEmail.text.trim(),
-        _rPass.text,
-        phone: _phone.text.trim().isEmpty ? null : _phone.text.trim(),  // #16
-      );
-      if (mounted) Navigator.pushReplacementNamed(context, '/home');
+      await ApiService().register(name, email, phone);
+      if (mounted) {
+        await _showOtpDialog(email);
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_parseError(e))));
     } finally {
@@ -91,9 +423,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             const SizedBox(height: 32),
             const Icon(Icons.account_balance_wallet_outlined, size: 40, color: AppTheme.primary),
             const SizedBox(height: 16),
-            const Text('UPI Tracker', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
+            const Text('UPI Tracker', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            const Text('Track every rupee automatically', style: TextStyle(fontSize: 14, color: Color(0xFF888780))),
+            const Text('Track every rupee automatically', style: TextStyle(fontSize: 16, color: Color(0xFF888780))),
             const SizedBox(height: 32),
 
             TabBar(
@@ -107,26 +439,28 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             const SizedBox(height: 24),
 
             Expanded(child: TabBarView(controller: _tabs, children: [
-
               // ── Login tab ─────────────────────────────────
               SingleChildScrollView(child: Form(key: _loginFormKey, child: Column(children: [
                 TextFormField(
-                  controller: _email, keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
-                  validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _pass, obscureText: _obscure,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                      onPressed: () => setState(() => _obscure = !_obscure),
-                    ),
+                  controller: _emailOrPhone,
+                  style: const TextStyle(fontSize: 16),
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email or Mobile Number',
+                    prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: (v) => (v == null || v.length < 6) ? 'Password must be at least 6 characters' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Email or Mobile number is required';
+                    final val = v.trim();
+                    if (val.contains('@')) {
+                      if (!val.contains('.') || val.length < 5) return 'Enter a valid email';
+                    } else {
+                      if (val.length < 10 || !RegExp(r'^\+?[0-9]+$').hasMatch(val)) {
+                        return 'Enter a valid mobile number (at least 10 digits)';
+                      }
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
@@ -140,41 +474,34 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               // ── Register tab ─────────────────────────────
               SingleChildScrollView(child: Form(key: _regFormKey, child: Column(children: [
                 TextFormField(
-                  controller: _name, textCapitalization: TextCapitalization.words,
+                  controller: _name,
+                  style: const TextStyle(fontSize: 16),
+                  textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(labelText: 'Full name', prefixIcon: Icon(Icons.person_outlined)),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
-                  controller: _rEmail, keyboardType: TextInputType.emailAddress,
+                  controller: _rEmail,
+                  style: const TextStyle(fontSize: 16),
+                  keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
-                  validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
-                ),
-                const SizedBox(height: 14),
-                // #16 — phone field
-                TextFormField(
-                  controller: _phone, keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Phone (optional)', prefixIcon: Icon(Icons.phone_outlined)),
+                  validator: (v) => (v == null || !v.contains('@') || !v.contains('.')) ? 'Enter a valid email' : null,
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
-                  controller: _rPass, obscureText: _rObscure,
-                  decoration: InputDecoration(
-                    labelText: 'Password (min 6 chars)',
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                    suffixIcon: IconButton(
-                      icon: Icon(_rObscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                      onPressed: () => setState(() => _rObscure = !_rObscure),
-                    ),
-                  ),
-                  validator: (v) => (v == null || v.length < 6) ? 'Password must be at least 6 characters' : null,
-                ),
-                const SizedBox(height: 14),
-                // #19 — confirm password
-                TextFormField(
-                  controller: _rPassC, obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Confirm password', prefixIcon: Icon(Icons.lock_outlined)),
-                  validator: (v) => v != _rPass.text ? 'Passwords do not match' : null,
+                  controller: _phone,
+                  style: const TextStyle(fontSize: 16),
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Mobile Number', prefixIcon: Icon(Icons.phone_outlined)),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Mobile number is mandatory';
+                    final val = v.trim();
+                    if (val.length < 10 || !RegExp(r'^\+?[0-9]+$').hasMatch(val)) {
+                      return 'Enter a valid mobile number (at least 10 digits)';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(

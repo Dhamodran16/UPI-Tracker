@@ -92,12 +92,12 @@ class InsightsScreen extends StatelessWidget {
                   child: Row(children: [
                     Icon(ico, size: 16, color: col),
                     const SizedBox(width: 8),
-                    SizedBox(width: 80, child: Text(e.key, style: const TextStyle(fontSize: 12, color: Color(0xFF888780)), overflow: TextOverflow.ellipsis)),
+                    SizedBox(width: 80, child: Text(e.key, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant), overflow: TextOverflow.ellipsis)),
                     Expanded(child: ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: e.value / maxM, minHeight: 8,
-                        backgroundColor: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                        backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
                         valueColor: AlwaysStoppedAnimation(col),
                       ),
                     )),
@@ -155,7 +155,7 @@ class InsightsScreen extends StatelessWidget {
                     showTitles: true, reservedSize: 24,
                     getTitlesWidget: (v, _) => Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text(_weekdays[v.toInt()], style: const TextStyle(fontSize: 11, color: Color(0xFF888780))),
+                      child: Text(_weekdays[v.toInt()], style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                     ),
                   )),
                 ),
@@ -177,39 +177,41 @@ class _InsightCard extends StatelessWidget {
   final String tag, title, subtitle;
   final Color tagColor, tagTextColor;
   final IconData iconData;
-  final Color iconColor;
+  final Color? iconColor;
 
   const _InsightCard({
     required this.tag, required this.title, required this.subtitle,
     required this.tagColor, required this.tagTextColor,
-    IconData? icon, Color? iconColor,
-  }) : iconData = icon ?? Icons.lightbulb_outline,
-       iconColor = iconColor ?? const Color(0xFF888780);
+    IconData? icon, this.iconColor,
+  }) : iconData = icon ?? Icons.lightbulb_outline;
 
   @override
-  Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 10),
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(
-          width: 36, height: 36,
-          decoration: BoxDecoration(color: tagColor, borderRadius: BorderRadius.circular(10)),
-          child: Icon(iconData, size: 18, color: iconColor),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  Widget build(BuildContext context) {
+    final effIconColor = iconColor ?? Theme.of(context).colorScheme.onSurfaceVariant;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            decoration: BoxDecoration(color: tagColor, borderRadius: BorderRadius.circular(20)),
-            child: Text(tag, style: TextStyle(fontSize: 10, color: tagTextColor, fontWeight: FontWeight.w600)),
+            width: 36, height: 36,
+            decoration: BoxDecoration(color: tagColor, borderRadius: BorderRadius.circular(10)),
+            child: Icon(iconData, size: 18, color: effIconColor),
           ),
-          const SizedBox(height: 5),
-          Text(title,    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 3),
-          Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF888780), height: 1.4)),
-        ])),
-      ]),
-    ),
-  );
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(color: tagColor, borderRadius: BorderRadius.circular(20)),
+              child: Text(tag, style: TextStyle(fontSize: 10, color: tagTextColor, fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(height: 5),
+            Text(title,    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 3),
+            Text(subtitle, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.4)),
+          ])),
+        ]),
+      ),
+    );
+  }
 }

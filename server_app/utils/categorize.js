@@ -59,21 +59,24 @@ const detectCategory = (text = '') => {
  * @returns {object|null}
  */
 const parseNotification = (text = '', packageName = '') => {
+  // Strip balance details to avoid parsing balance as the transaction amount
+  const cleanText = text.replace(/(?:bal|balance|avail\s+bal|available\s+bal|available\s+balance|avbl\s+bal|ledger\s+bal|net\s+bal|effective\s+bal)[:\s#]*(?:₹|Rs\.?|INR)?\s*[\d,]+(?:\.\d{1,2})?/gi, '');
+
   // Amount patterns: ₹500, Rs.500, Rs 500, INR 500
-  const amountMatch = text.match(/(?:₹|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)/i);
+  const amountMatch = cleanText.match(/(?:₹|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)/i);
   if (!amountMatch) return null;
 
   const amount = parseFloat(amountMatch[1].replace(/,/g, ''));
   if (!amount || amount <= 0) return null;
 
   // Payee patterns
-  const payeeMatch = text.match(
-    /(?:paid to|sent to|payment to|debit to|to\s+vpa)\s+([A-Za-z0-9@.\-_\s]+?)(?:\s+on|\s+via|\s+ref|\s+upi|$)/i
+  const payeeMatch = cleanText.match(
+    /(?:paid to|sent to|payment to|debit to|to\s+vpa|spent at|spent on|transfer to|info[:\s]+)\s+([A-Za-z0-9@.\-_\s]+?)(?:\s+on|\s+via|\s+ref|\s+upi|\s+linked|$)/i
   );
   const payee = payeeMatch?.[1]?.trim() || 'Unknown';
 
   // UPI Ref / transaction ID
-  const refMatch = text.match(/(?:ref|upi ref|txn|transaction id)[:\s#]+([A-Z0-9]+)/i);
+  const refMatch = cleanText.match(/(?:ref|upi ref|txn|transaction id)(?:\s+no\.?)?[:\s#]+([A-Z0-9]+)/i);
   const upiRef = refMatch?.[1] || null;
 
   // Map package name to app label
@@ -90,7 +93,7 @@ const parseNotification = (text = '', packageName = '') => {
     payee,
     upiRef,
     upiApp:   APP_MAP[packageName] || 'Other',
-    category: detectCategory(payee + ' ' + text),
+    category: detectCategory(payee + ' ' + cleanText),
     date:     new Date(),
   };
 };

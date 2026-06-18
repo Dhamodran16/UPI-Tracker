@@ -9,6 +9,7 @@ class ExpenseProvider extends ChangeNotifier {
   final _api = ApiService();
 
   List<Expense>   expenses       = [];
+  List<Map<String, int>> trackedMonths = [];
   MonthlySummary? summary;
   bool            loading        = false;
   String?         error;
@@ -44,9 +45,9 @@ class ExpenseProvider extends ChangeNotifier {
   // ── Current user profile ───────────────────────────────────────────────────
   Map<String, dynamic>? currentUser;
 
-  Future<String?> updateUserProfile(String name, String phone) async {
+  Future<String?> updateUserProfile(String name, String email, String phone) async {
     try {
-      final res = await _api.updateProfile(name: name, phone: phone);
+      final res = await _api.updateProfile(name: name, email: email, phone: phone);
       currentUser = res['user'] as Map<String, dynamic>?;
       if (currentUser != null) {
         final prefs = await SharedPreferences.getInstance();
@@ -72,7 +73,7 @@ class ExpenseProvider extends ChangeNotifier {
   // ── Persisted savings goals (#14) ──────────────────────────────────────────
   List<SavingsGoal> goals = [];
 
-  ExpenseProvider() { _loadPersistedData(); }
+  ExpenseProvider() { _loadPersistedData(); loadTrackedMonths(); }
 
   Future<void> _loadPersistedData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -223,9 +224,23 @@ class ExpenseProvider extends ChangeNotifier {
   void setFilter(String cat) { filterCategory = cat; notifyListeners(); }
   void setSort(String s)     { sortBy = s;           notifyListeners(); }
 
+  Future<void> loadTrackedMonths() async {
+    try {
+      final res = await _api.getTrackedMonths();
+      trackedMonths = List<Map<String, int>>.from(res.map((e) => {
+        'month': e['month'] as int,
+        'year': e['year'] as int,
+      }));
+    } catch (_) {
+      final now = DateTime.now();
+      trackedMonths = [{'month': now.month, 'year': now.year}];
+    }
+  }
+
   Future<void> load() async {
     loading = true; error = null; notifyListeners();
     try {
+      await loadTrackedMonths();
       expenses = await _api.getExpenses(month: selectedMonth, year: selectedYear, limit: 500);
       try {
         final profile = await _api.getMe();

@@ -10,14 +10,16 @@ class AppTheme {
   static ThemeData light() => ThemeData(
     useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(seedColor: primary),
-    textTheme: GoogleFonts.interTextTheme(),
+    textTheme: GoogleFonts.interTextTheme(
+      ThemeData.light().textTheme.apply(fontSizeFactor: 1.12),
+    ),
     scaffoldBackgroundColor: const Color(0xFFF8F8F8),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.white,
       elevation: 0,
       scrolledUnderElevation: 0.5,
       centerTitle: false,
-      titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A)),
+      titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A)),
       iconTheme: IconThemeData(color: Color(0xFF1A1A1A)),
     ),
     cardTheme: CardThemeData(
@@ -38,6 +40,8 @@ class AppTheme {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
+      labelStyle: const TextStyle(fontSize: 14),
+      floatingLabelStyle: const TextStyle(fontSize: 14),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12))),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12))),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: primary, width: 1.5)),
@@ -56,13 +60,16 @@ class AppTheme {
 
   static ThemeData dark() => ThemeData(
     useMaterial3: true,
+    brightness: Brightness.dark,
     colorScheme: ColorScheme.fromSeed(seedColor: primary, brightness: Brightness.dark),
-    textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+    textTheme: GoogleFonts.interTextTheme(
+      ThemeData.dark().textTheme.apply(fontSizeFactor: 1.12),
+    ),
     scaffoldBackgroundColor: const Color(0xFF0F0F0F),
     appBarTheme: const AppBarTheme(
       backgroundColor: Color(0xFF1A1A1A),
       elevation: 0,
-      titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+      titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white),
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: Color(0xFF1A1A1A),
@@ -82,6 +89,8 @@ class AppTheme {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: const Color(0xFF1A1A1A),
+      labelStyle: const TextStyle(fontSize: 14),
+      floatingLabelStyle: const TextStyle(fontSize: 14),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15))),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15))),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF64B5F6), width: 1.5)),

@@ -18,6 +18,8 @@ dependencies:
   fluttertoast: ^8.2.4
   google_fonts: ^6.1.0
   flutter_dotenv: ^5.1.0        # reads .env file at runtime
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.17.8
 
 dev_dependencies:
   flutter_test:

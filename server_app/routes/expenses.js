@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const {
@@ -9,6 +9,7 @@ const {
   getYearlyStats,
   deleteExpense,
   updateExpense,
+  getTrackedMonths,
 } = require('../controllers/expenseController');
 
 router.use(protect); // All expense routes require auth
@@ -17,6 +18,7 @@ router.route('/')
   .post(createExpense)
   .get(getExpenses);
 
+router.get('/months',       getTrackedMonths);   // BEFORE /:id
 router.get('/summary',      getMonthlySummary);
 router.get('/export',       exportExpenses);     // BEFORE /:id
 router.get('/stats/yearly', getYearlyStats);     // BEFORE /:id

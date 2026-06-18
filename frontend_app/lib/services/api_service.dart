@@ -34,10 +34,26 @@ class ApiService {
   ));
 
   // ── Auth ──────────────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> register(String name, String email, String password, {String? phone}) async {
+  Future<Map<String, dynamic>> register(String name, String email, String phone) async {
     final res = await _dio.post('/api/auth/register', data: {
-      'name': name, 'email': email, 'password': password,
-      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      'name': name,
+      'email': email,
+      'phone': phone,
+    });
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> login(String identifier) async {
+    final res = await _dio.post('/api/auth/login', data: {
+      'identifier': identifier,
+    });
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> verifyOtp(String identifier, String otp) async {
+    final res = await _dio.post('/api/auth/verify-otp', data: {
+      'identifier': identifier,
+      'otp': otp,
     });
     final token = res.data['token'] as String;
     await _storage.write(key: 'jwt', value: token);
@@ -47,13 +63,19 @@ class ApiService {
     return res.data as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> login(String email, String password) async {
-    final res = await _dio.post('/api/auth/login', data: {'email': email, 'password': password});
-    final token = res.data['token'] as String;
-    await _storage.write(key: 'jwt', value: token);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('jwt', token);
-    await prefs.setString('api_base_url', _baseUrl);
+  Future<Map<String, dynamic>> verifyFirebaseToken(String idToken, {String? name, String? email}) async {
+    final res = await _dio.post('/api/auth/verify-firebase-token', data: {
+      'idToken': idToken,
+      if (name != null) 'name': name,
+      if (email != null) 'email': email,
+    });
+    if (res.data['token'] != null) {
+      final token = res.data['token'] as String;
+      await _storage.write(key: 'jwt', value: token);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('jwt', token);
+      await prefs.setString('api_base_url', _baseUrl);
+    }
     return res.data as Map<String, dynamic>;
   }
 
@@ -71,30 +93,24 @@ class ApiService {
     return res.data as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> updateProfile({String? name, String? phone}) async {
+  Future<Map<String, dynamic>> updateProfile({String? name, String? email, String? phone}) async {
     final res = await _dio.patch('/api/auth/profile', data: {
       if (name  != null) 'name':  name,
+      if (email != null) 'email': email,
       if (phone != null) 'phone': phone,
     });
     return res.data as Map<String, dynamic>;
-  }
-
-  Future<void> changePassword(String currentPassword, String newPassword) async {
-    await _dio.post('/api/auth/change-password', data: {
-      'currentPassword': currentPassword,
-      'newPassword':     newPassword,
-    });
-  }
-
-  Future<String> forgotPassword(String email) async {
-    final res = await _dio.post('/api/auth/forgot-password', data: {'email': email});
-    return (res.data['message'] as String?) ?? 'Reset link sent.';
   }
 
   // ── Expenses ──────────────────────────────────────────────────────────────
   Future<Expense> createExpense(Expense e) async {
     final res = await _dio.post('/api/expenses', data: e.toJson());
     return Expense.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<List<dynamic>> getTrackedMonths() async {
+    final res = await _dio.get('/api/expenses/months');
+    return res.data as List<dynamic>;
   }
 
   Future<List<Expense>> getExpenses({

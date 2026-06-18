@@ -1,19 +1,46 @@
-const mongoose = require('mongoose');
+﻿const admin = require('firebase-admin');
 
-const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 5000,
-    });
-    console.log(`MongoDB connected: ${conn.connection.host}`);
-  } catch (err) {
-    console.error('MongoDB connection error:', err.message);
-    process.exit(1);
+const connectDB = () => {
+  if (admin.apps.length === 0) {
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+    if (projectId && clientEmail && privateKey) {
+      if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+        privateKey = privateKey.substring(1, privateKey.length - 1);
+      }
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey: privateKey.replace(/\\n/g, '\n'),
+        }),
+      });
+      console.log('Firebase Admin initialized successfully using credentials.');
+    } else {
+      // Fallback
+      try {
+        admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+        });
+        console.log('Firebase Admin initialized successfully using applicationDefault.');
+      } catch (err) {
+        console.warn('Firebase applicationDefault credentials not found. Booting in mock/emulator mode...');
+        admin.initializeApp({
+          projectId: projectId || 'upi-tracker-mock',
+        });
+      }
+    }
   }
+  return admin.firestore();
 };
 
-mongoose.connection.on('disconnected', () => {
-  console.warn('MongoDB disconnected. Attempting reconnect...');
-});
+const getDb = () => {
+  if (admin.apps.length === 0) {
+    return connectDB();
+  }
+  return admin.firestore();
+};
 
-module.exports = connectDB;
+module.exports = { connectDB, getDb };

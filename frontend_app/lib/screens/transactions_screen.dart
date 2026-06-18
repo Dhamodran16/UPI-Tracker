@@ -45,6 +45,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
             child: TextField(
               controller: _searchCtrl,
+              style: const TextStyle(fontSize: 16),
               onChanged: (v) => setState(() => _localSearch = v.trim()),
               decoration: InputDecoration(
                 hintText: 'Search payee, category…',

@@ -14,17 +14,12 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _profileFormKey = GlobalKey<FormState>();
-  final _passwordFormKey = GlobalKey<FormState>();
 
   late final _nameCtrl = TextEditingController();
+  late final _emailCtrl = TextEditingController();
   late final _phoneCtrl = TextEditingController();
 
-  final _currentPasswordCtrl = TextEditingController();
-  final _newPasswordCtrl = TextEditingController();
-  final _confirmPasswordCtrl = TextEditingController();
-
   bool _savingProfile = false;
-  bool _savingPassword = false;
   bool _listenerPermission = false;
   bool _fieldsInitialized = false;
 
@@ -39,6 +34,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final user = context.read<ExpenseProvider>().currentUser;
     if (user != null) {
       _nameCtrl.text = user['name']?.toString() ?? '';
+      _emailCtrl.text = user['email']?.toString() ?? '';
       _phoneCtrl.text = user['phone']?.toString() ?? '';
       _fieldsInitialized = true;
     }
@@ -52,10 +48,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _emailCtrl.dispose();
     _phoneCtrl.dispose();
-    _currentPasswordCtrl.dispose();
-    _newPasswordCtrl.dispose();
-    _confirmPasswordCtrl.dispose();
     super.dispose();
   }
 
@@ -65,6 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final err = await context.read<ExpenseProvider>().updateUserProfile(
       _nameCtrl.text.trim(),
+      _emailCtrl.text.trim(),
       _phoneCtrl.text.trim(),
     );
 
@@ -79,37 +74,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SnackBar(content: Text(err), backgroundColor: AppTheme.danger),
         );
       }
-    }
-  }
-
-  Future<void> _changePassword() async {
-    if (!_passwordFormKey.currentState!.validate()) return;
-    setState(() => _savingPassword = true);
-
-    try {
-      await ApiService().changePassword(
-        _currentPasswordCtrl.text,
-        _newPasswordCtrl.text,
-      );
-      if (mounted) {
-        _currentPasswordCtrl.clear();
-        _newPasswordCtrl.clear();
-        _confirmPasswordCtrl.clear();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password updated successfully ✔')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        final msg = e.toString().contains('401')
-            ? 'Incorrect current password'
-            : 'Failed to update password. Try again.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: AppTheme.danger),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _savingPassword = false);
     }
   }
 
@@ -157,6 +121,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (user != null && !_fieldsInitialized) {
       _nameCtrl.text = user['name']?.toString() ?? '';
+      _emailCtrl.text = user['email']?.toString() ?? '';
       _phoneCtrl.text = user['phone']?.toString() ?? '';
       _fieldsInitialized = true;
     }
@@ -178,13 +143,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            user['email']?.toString() ?? 'No email',
-                            style: const TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                          const SizedBox(height: 14),
                           TextFormField(
                             controller: _nameCtrl,
+                            style: const TextStyle(fontSize: 16),
                             decoration: const InputDecoration(
                               labelText: 'Full Name',
                               prefixIcon: Icon(Icons.person_outline),
@@ -193,18 +154,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
+                            controller: _emailCtrl,
+                            style: const TextStyle(fontSize: 16),
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: const InputDecoration(
+                              labelText: 'Email Address',
+                              prefixIcon: Icon(Icons.email_outlined),
+                            ),
+                            validator: (v) => (v == null || !v.contains('@') || !v.contains('.')) ? 'Enter a valid email' : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
                             controller: _phoneCtrl,
+                            style: const TextStyle(fontSize: 16),
                             keyboardType: TextInputType.phone,
                             decoration: const InputDecoration(
                               labelText: 'Mobile Number (Mandatory)',
                               prefixIcon: Icon(Icons.phone_outlined),
                             ),
-                            // Mobile number mandatory check
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) {
                                 return 'Mobile number is mandatory';
                               }
-                              if (v.trim().length < 10) {
+                              if (v.trim().length < 10 || !RegExp(r'^\+?[0-9]+$').hasMatch(v.trim())) {
                                 return 'Enter a valid 10-digit number';
                               }
                               return null;
@@ -306,7 +278,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       OutlinedButton(
                         onPressed: () async {
                           await NotificationService.openNotificationSettings();
-                          // Refresh status when user returns
                           Future.delayed(const Duration(seconds: 1), _checkPermission);
                         },
                         style: OutlinedButton.styleFrom(
@@ -318,58 +289,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // ── CHANGE PASSWORD SECTION ────────────────────────────────────────
-          _sectionTitle('SECURITY & PASSWORD'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _passwordFormKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: _currentPasswordCtrl,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Current Password',
-                        prefixIcon: Icon(Icons.lock_open_outlined),
-                      ),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Enter current password' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _newPasswordCtrl,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'New Password (min 6 chars)',
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
-                      validator: (v) => (v == null || v.length < 6) ? 'Password must be at least 6 characters' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _confirmPasswordCtrl,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Confirm New Password',
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
-                      validator: (v) => v != _newPasswordCtrl.text ? 'Passwords do not match' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _savingPassword ? null : _changePassword,
-                      child: _savingPassword
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text('Update Password'),
-                    ),
-                  ],
-                ),
               ),
             ),
           ),

@@ -22,12 +22,12 @@ class MetricCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF888780))),
+      Text(label, style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurfaceVariant)),
       const SizedBox(height: 4),
-      Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: valueColor)),
+      Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: valueColor)),
       if (sub != null) ...[
         const SizedBox(height: 2),
-        Text(sub!, style: const TextStyle(fontSize: 11, color: Color(0xFF888780))),
+        Text(sub!, style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurfaceVariant)),
       ],
     ]),
   );
@@ -93,16 +93,16 @@ class TxnTile extends StatelessWidget {
             CatIcon(category: expense.category),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(expense.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(expense.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 2),
               Text(
                 '${DateFormat('d MMM').format(expense.date)}  ·  ${expense.upiApp}${expense.note != null && expense.note!.isNotEmpty ? "  ·  ${expense.note}" : ""}',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF888780)),
+                style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 maxLines: 1, overflow: TextOverflow.ellipsis,
               ),
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('-${fmtAmt(expense.amount)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFA32D2D))),
+              Text('-${fmtAmt(expense.amount)}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFFA32D2D))),
               const SizedBox(height: 2),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -110,7 +110,7 @@ class TxnTile extends StatelessWidget {
                   color: (AppColors.category[expense.category] ?? const Color(0xFF888780)).withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.16 : 0.10),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(expense.category, style: TextStyle(fontSize: 10, color: AppColors.category[expense.category] ?? const Color(0xFF888780))),
+                child: Text(expense.category, style: TextStyle(fontSize: 14, color: AppColors.category[expense.category] ?? const Color(0xFF888780))),
               ),
             ]),
           ]),
@@ -135,17 +135,17 @@ class BarRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(children: [
-        SizedBox(width: 90, child: Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF888780)), overflow: TextOverflow.ellipsis)),
+        SizedBox(width: 100, child: Text(label, style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant), overflow: TextOverflow.ellipsis)),
         Expanded(child: ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: pct, minHeight: 8,
-            backgroundColor: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+            backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
             valueColor: AlwaysStoppedAnimation(color),
           ),
         )),
         const SizedBox(width: 8),
-        SizedBox(width: 60, child: Text(valueLabel ?? fmtAmt(value), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color), textAlign: TextAlign.right)),
+        SizedBox(width: 70, child: Text(valueLabel ?? fmtAmt(value), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: color), textAlign: TextAlign.right)),
       ]),
     );
   }
@@ -161,7 +161,7 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: Row(children: [
-      Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF888780))),
+      Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurfaceVariant)),
       const Spacer(),
       if (trailing != null) trailing!,
     ]),
@@ -180,7 +180,7 @@ class EmptyState extends StatelessWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.receipt_long_outlined, size: 48, color: Colors.grey.shade300),
         const SizedBox(height: 12),
-        Text(message, style: TextStyle(color: Colors.grey.shade400, fontSize: 14), textAlign: TextAlign.center),
+        Text(message, style: TextStyle(color: Colors.grey.shade400, fontSize: 18), textAlign: TextAlign.center),
       ]),
     ),
   );

@@ -47,6 +47,10 @@ class UpiNotificationService : NotificationListenerService() {
             "(?:ref|upi ref|txn|transaction id)(?:\\s+no\\.?)?[:\\s#]+([A-Z0-9]+)",
             Pattern.CASE_INSENSITIVE
         )
+        private val BALANCE_PATTERN = Pattern.compile(
+            "(?:bal|balance|avail\\s+bal|available\\s+bal|available\\s+balance|avbl\\s+bal|ledger\\s+bal|net\\s+bal|effective\\s+bal)[:\\s#]*(?:Rs\\.?|INR|₹)?\\s*[\\d,]+(?:\\.\\d{1,2})?",
+            Pattern.CASE_INSENSITIVE
+        )
 
         // Set by MainActivity when Flutter engine is ready
         var methodChannel: MethodChannel? = null
@@ -168,15 +172,17 @@ class UpiNotificationService : NotificationListenerService() {
             return null
         }
 
-        val amountMatcher = AMOUNT_PATTERN.matcher(text)
+        val cleanText = BALANCE_PATTERN.matcher(text).replaceAll("")
+
+        val amountMatcher = AMOUNT_PATTERN.matcher(cleanText)
         if (!amountMatcher.find()) return null
         val amount = amountMatcher.group(1)?.replace(",", "")?.toDoubleOrNull() ?: return null
         if (amount <= 0) return null
 
-        val payeeMatcher = PAYEE_PATTERN.matcher(text)
+        val payeeMatcher = PAYEE_PATTERN.matcher(cleanText)
         val payee = if (payeeMatcher.find()) payeeMatcher.group(1)?.trim() ?: "Unknown" else "Unknown"
 
-        val refMatcher = REF_PATTERN.matcher(text)
+        val refMatcher = REF_PATTERN.matcher(cleanText)
         val ref = if (refMatcher.find()) refMatcher.group(1) else null
 
         val category = AutoCategorizer.detect("$payee $text")

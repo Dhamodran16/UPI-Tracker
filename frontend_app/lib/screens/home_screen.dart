@@ -42,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: DropdownButton<String>(
                 value: '${p.selectedMonth}/${p.selectedYear}',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
@@ -50,13 +50,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 dropdownColor: Theme.of(context).brightness == Brightness.dark 
                     ? const Color(0xFF1E1E1E) 
                     : Colors.white,
-                items: List.generate(12, (i) {
-                  final d = DateTime(now.year, now.month - i);
-                  return DropdownMenuItem(
-                    value: '${d.month}/${d.year}',
-                    child: Text(DateFormat('MMM yyyy').format(d)),
-                  );
-                }),
+                items: (() {
+                  final list = List<Map<String, int>>.from(p.trackedMonths);
+                  final hasSelected = list.any((m) => m['month'] == p.selectedMonth && m['year'] == p.selectedYear);
+                  if (!hasSelected) {
+                    list.add({'month': p.selectedMonth, 'year': p.selectedYear});
+                    list.sort((a, b) {
+                      if (a['year'] != b['year']) return b['year']!.compareTo(a['year']!);
+                      return b['month']!.compareTo(a['month']!);
+                    });
+                  }
+                  return list.map((m) {
+                    final d = DateTime(m['year']!, m['month']!);
+                    return DropdownMenuItem(
+                      value: '${d.month}/${d.year}',
+                      child: Text(DateFormat('MMM yyyy').format(d)),
+                    );
+                  }).toList();
+                })(),
                 onChanged: (v) {
                   final parts = v!.split('/');
                   p.setMonth(int.parse(parts[0]), int.parse(parts[1]));
