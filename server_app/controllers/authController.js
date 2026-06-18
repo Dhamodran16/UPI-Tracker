@@ -20,9 +20,23 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
     },
     connectionTimeout: 5000, // 5 seconds connection timeout
     greetingTimeout: 5000,   // 5 seconds greeting timeout
-    socketTimeout: 5000,     // 5 seconds socket inactivity timeout
   });
 }
+
+const testSMTPConnection = async () => {
+  if (!transporter) {
+    throw new Error('SMTP Mail server configuration is missing in environment variables.');
+  }
+  return new Promise((resolve, reject) => {
+    transporter.verify((error, success) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(true);
+      }
+    });
+  });
+};
 
 const sendEmailOTP = async (email, otp) => {
   if (!transporter) {
@@ -387,4 +401,4 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { register, login, verifyOtp, verifyFirebaseToken, getMe, updateProfile };
+module.exports = { register, login, verifyOtp, verifyFirebaseToken, getMe, updateProfile, testSMTPConnection };
