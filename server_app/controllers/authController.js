@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const admin = require('firebase-admin');
+const { getAuth } = require('firebase-admin/auth');
 const { FieldValue } = require('firebase-admin/firestore');
 const { getDb } = require('../config/db');
 
@@ -18,11 +19,11 @@ const syncUserToFirebaseAuth = async (userId, name, email, phone) => {
     // Attempt to retrieve user by UID
     let authUser;
     try {
-      authUser = await admin.auth().getUser(userId);
+      authUser = await getAuth().getUser(userId);
     } catch (err) {
       if (err.code === 'auth/user-not-found') {
         // Create user with matching firestore userId as UID
-        authUser = await admin.auth().createUser({
+        authUser = await getAuth().createUser({
           uid: userId,
           email: email.toLowerCase().trim(),
           phoneNumber: formattedPhone,
@@ -36,7 +37,7 @@ const syncUserToFirebaseAuth = async (userId, name, email, phone) => {
 
     if (authUser) {
       // Keep Firebase Auth in sync with Firestore
-      await admin.auth().updateUser(userId, {
+      await getAuth().updateUser(userId, {
         email: email.toLowerCase().trim(),
         phoneNumber: formattedPhone,
         displayName: name.trim()
@@ -74,7 +75,7 @@ const verifyFirebaseToken = async (req, res) => {
     // Verify the Firebase ID Token
     let decodedToken;
     try {
-      decodedToken = await admin.auth().verifyIdToken(idToken);
+      decodedToken = await getAuth().verifyIdToken(idToken);
     } catch (e) {
       return res.status(401).json({ error: `Invalid Firebase Token: ${e.message}` });
     }
@@ -137,7 +138,7 @@ const verifyFirebaseToken = async (req, res) => {
     
     // Sync back to Firebase Auth to set displayName/email
     try {
-      await admin.auth().updateUser(decodedToken.uid, {
+      await getAuth().updateUser(decodedToken.uid, {
         displayName: name.trim(),
         email: email.toLowerCase().trim()
       });
