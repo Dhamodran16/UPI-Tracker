@@ -67,21 +67,6 @@ app.get('/health', async (req, res) => {
     dbStatus = 'error: ' + err.message;
   }
 
-  const emailConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
-  let emailStatus = emailConfigured ? 'configured' : 'missing_config';
-  let emailError = null;
-
-  if (emailConfigured && req.query.verify_smtp === 'true') {
-    try {
-      const { testSMTPConnection } = require('./controllers/authController');
-      await testSMTPConnection();
-      emailStatus = 'verified_connected';
-    } catch (err) {
-      emailStatus = 'verification_failed';
-      emailError = err.message;
-    }
-  }
-
   const firebaseConfigured = !!(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
 
   const isHealthy = dbStatus === 'connected';
@@ -94,13 +79,8 @@ app.get('/health', async (req, res) => {
         status: dbStatus,
         type: 'Firestore'
       },
-      email_otp: {
-        status: emailStatus,
-        delivery: 'SMTP',
-        ...(emailError && { error: emailError })
-      },
       phone_otp: {
-        status: firebaseConfigured ? 'configured' : 'fallback_mode',
+        status: firebaseConfigured ? 'configured' : 'missing_config',
         provider: 'Firebase Auth'
       }
     },

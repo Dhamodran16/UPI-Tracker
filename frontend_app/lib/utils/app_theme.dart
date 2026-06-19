@@ -11,8 +11,8 @@ class AppTheme {
     useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(seedColor: primary),
     textTheme: GoogleFonts.interTextTheme(
-      ThemeData.light().textTheme.apply(fontSizeFactor: 1.12),
-    ),
+      ThemeData.light().textTheme,
+    ).apply(fontSizeFactor: 1.12),
     scaffoldBackgroundColor: const Color(0xFFF8F8F8),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.white,
@@ -63,8 +63,8 @@ class AppTheme {
     brightness: Brightness.dark,
     colorScheme: ColorScheme.fromSeed(seedColor: primary, brightness: Brightness.dark),
     textTheme: GoogleFonts.interTextTheme(
-      ThemeData.dark().textTheme.apply(fontSizeFactor: 1.12),
-    ),
+      ThemeData.dark().textTheme,
+    ).apply(fontSizeFactor: 1.12),
     scaffoldBackgroundColor: const Color(0xFF0F0F0F),
     appBarTheme: const AppBarTheme(
       backgroundColor: Color(0xFF1A1A1A),

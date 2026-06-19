@@ -2,6 +2,7 @@ plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
 }
 
 def localProperties = new Properties()
@@ -24,7 +25,7 @@ if (flutterVersionName == null) {
 
 
 android {
-    namespace "com.example.upi_tracker"
+    namespace "com.careersync.app"
     compileSdkVersion 35
     ndkVersion "27.0.12077973"
 
@@ -43,9 +44,8 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.upi_tracker"
-        // API 26+ required for java.time.Instant
-        minSdkVersion 26
+        applicationId "com.careersync.app"
+        minSdkVersion 23
         targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

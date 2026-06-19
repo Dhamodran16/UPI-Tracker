@@ -1,56 +1,11 @@
 const jwt = require('jsonwebtoken');
 const admin = require('firebase-admin');
-const nodemailer = require('nodemailer');
 const { FieldValue } = require('firebase-admin/firestore');
 const { getDb } = require('../config/db');
 
 const generateToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
 
-// Transporter for nodemailer (Email OTP)
-let transporter = null;
-if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-    connectionTimeout: 5000, // 5 seconds connection timeout
-    greetingTimeout: 5000,   // 5 seconds greeting timeout
-  });
-}
-
-const testSMTPConnection = async () => {
-  if (!transporter) {
-    throw new Error('SMTP Mail server configuration is missing in environment variables.');
-  }
-  return new Promise((resolve, reject) => {
-    transporter.verify((error, success) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve(true);
-      }
-    });
-  });
-};
-
-const sendEmailOTP = async (email, otp) => {
-  if (!transporter) {
-    throw new Error('SMTP Mail server configuration is missing in environment variables.');
-  }
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM_EMAIL || '"UPI Tracker" <noreply@example.com>',
-    to: email.toLowerCase().trim(),
-    subject: 'Your OTP Verification Code',
-    text: `Your OTP code is: ${otp}. It will expire in 10 minutes.`,
-    html: `<p>Your OTP code is: <strong>${otp}</strong>.</p><p>It will expire in 10 minutes.</p>`,
-  });
-  console.log(`[OTP] Email successfully sent to ${email} via SMTP`);
-};
 
 const syncUserToFirebaseAuth = async (userId, name, email, phone) => {
   try {
@@ -92,158 +47,21 @@ const syncUserToFirebaseAuth = async (userId, name, email, phone) => {
   }
 };
 
-// POST /api/auth/register
+// POST /api/auth/register (Deprecated)
 const register = async (req, res) => {
-  try {
-    const { name, email, phone } = req.body;
-    const db = getDb();
-
-    // Check if email already exists
-    const emailSnapshot = await db.collection('users').where('email', '==', email.toLowerCase().trim()).limit(1).get();
-    if (!emailSnapshot.empty) return res.status(400).json({ error: 'Email already registered.' });
-
-    // Check if phone already exists
-    const phoneSnapshot = await db.collection('users').where('phone', '==', phone.trim()).limit(1).get();
-    if (!phoneSnapshot.empty) return res.status(400).json({ error: 'Mobile number already registered.' });
-
-    // Generate a 6-digit OTP for Email verification
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
-
-    const docRef = await db.collection('users').add({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      phone: phone.trim(),
-      otp,
-      otpExpires,
-      isVerified: false,
-      createdAt: new Date().toISOString()
-    });
-
-    // Send email OTP in the background (non-blocking) to prevent client timeouts
-    sendEmailOTP(email.toLowerCase().trim(), otp).catch(mailErr => {
-      console.error(`[SMTP Background Error] Failed to send registration email to ${email}:`, mailErr.message);
-    });
-
-    res.status(201).json({
-      message: 'OTP sent to email successfully',
-      identifier: email.toLowerCase().trim()
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.status(400).json({ error: 'Deprecated: Register via Firebase Phone Auth directly.' });
 };
 
-// POST /api/auth/login
+// POST /api/auth/login (Deprecated)
 const login = async (req, res) => {
-  try {
-    const { identifier } = req.body;
-    const db = getDb();
-    const isEmail = identifier.includes('@');
-    const searchVal = identifier.trim();
-
-    let query = db.collection('users');
-    if (isEmail) {
-      query = query.where('email', '==', searchVal.toLowerCase());
-    } else {
-      query = query.where('phone', '==', searchVal);
-    }
-
-    const snapshot = await query.limit(1).get();
-    if (snapshot.empty) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    const userDoc = snapshot.docs[0];
-    const userData = userDoc.data();
-    const userId = userDoc.id;
-
-    if (!isEmail) {
-      // For phone number, tell the client to sign in via Firebase Auth client SDK
-      return res.json({
-        useFirebase: true,
-        message: 'Please verify phone number using Firebase client-side SDK.'
-      });
-    }
-
-    // Generate a 6-digit OTP for Email
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-
-    await db.collection('users').doc(userId).update({
-      otp,
-      otpExpires
-    });
-
-    // Send real OTP dynamically based on email in the background (non-blocking)
-    sendEmailOTP(userData.email, otp).catch(mailErr => {
-      console.error(`[SMTP Background Error] Failed to send login email to ${userData.email}:`, mailErr.message);
-    });
-
-    res.json({
-      message: 'OTP sent successfully',
-      identifier: identifier
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.status(400).json({ error: 'Deprecated: Login via Firebase Phone Auth directly.' });
 };
 
-// POST /api/auth/verify-otp
+// POST /api/auth/verify-otp (Deprecated)
 const verifyOtp = async (req, res) => {
-  try {
-    const { identifier, otp } = req.body;
-    const db = getDb();
-    const isEmail = identifier.includes('@');
-    const searchVal = identifier.trim();
-
-    let query = db.collection('users');
-    if (isEmail) {
-      query = query.where('email', '==', searchVal.toLowerCase());
-    } else {
-      query = query.where('phone', '==', searchVal);
-    }
-
-    const snapshot = await query.limit(1).get();
-    if (snapshot.empty) {
-      return res.status(400).json({ error: 'Invalid OTP or expired.' });
-    }
-
-    const userDoc = snapshot.docs[0];
-    const userData = userDoc.data();
-    const userId = userDoc.id;
-
-    if (!userData.otp || userData.otp !== otp || !userData.otpExpires || new Date(userData.otpExpires) < new Date()) {
-      return res.status(400).json({ error: 'Invalid OTP or expired.' });
-    }
-
-    // Mark verified and clear OTP
-    await db.collection('users').doc(userId).update({
-      isVerified: true,
-      otp: FieldValue.delete(),
-      otpExpires: FieldValue.delete()
-    });
-
-    // Sync verified user to Firebase Auth and generate custom token
-    let firebaseCustomToken = null;
-    try {
-      await syncUserToFirebaseAuth(userId, userData.name, userData.email, userData.phone);
-      firebaseCustomToken = await admin.auth().createCustomToken(userId);
-    } catch (e) {
-      console.error(`[Firebase Auth customToken warning]: ${e.message}`);
-    }
-
-    const token = generateToken(userId);
-
-    res.json({
-      token,
-      firebaseCustomToken,
-      user: { id: userId, name: userData.name, email: userData.email, phone: userData.phone },
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.status(400).json({ error: 'Deprecated: Verify via Firebase Phone Auth directly.' });
 };
+
 
 // POST /api/auth/verify-firebase-token
 const verifyFirebaseToken = async (req, res) => {
@@ -401,4 +219,4 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { register, login, verifyOtp, verifyFirebaseToken, getMe, updateProfile, testSMTPConnection };
+module.exports = { register, login, verifyOtp, verifyFirebaseToken, getMe, updateProfile, testEmailConnection };

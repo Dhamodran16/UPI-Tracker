@@ -144,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ? LineChart(LineChartData(
                               lineTouchData: LineTouchData(
                                 touchTooltipData: LineTouchTooltipData(
-                                  getTooltipColor: (spot) => isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                                  tooltipBgColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
                                   tooltipBorder: BorderSide(
                                     color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1),
                                     width: 1,
@@ -176,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           : BarChart(BarChartData(
                               barTouchData: BarTouchData(
                                 touchTooltipData: BarTouchTooltipData(
-                                  getTooltipColor: (group) => isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                                  tooltipBgColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
                                   tooltipBorder: BorderSide(
                                     color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1),
                                     width: 1,
