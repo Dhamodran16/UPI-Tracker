@@ -219,4 +219,4 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { register, login, verifyOtp, verifyFirebaseToken, getMe, updateProfile, testEmailConnection };
+module.exports = { register, login, verifyOtp, verifyFirebaseToken, getMe, updateProfile };
