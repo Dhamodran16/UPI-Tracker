@@ -164,29 +164,29 @@ class ExpenseProvider extends ChangeNotifier {
     e.date.month == selectedMonth && e.date.year == selectedYear
   ).toList();
 
-  double get monthTotal => monthExpenses.fold(0, (s, e) => s + e.amount);
+  double get monthTotal => monthExpenses.where((e) => e.type == 'debit').fold(0, (s, e) => s + e.amount);
   double get todayTotal {
     final now = DateTime.now();
     return expenses.where((e) =>
-      e.date.day == now.day && e.date.month == now.month && e.date.year == now.year
+      e.date.day == now.day && e.date.month == now.month && e.date.year == now.year && e.type == 'debit'
     ).fold(0, (s, e) => s + e.amount);
   }
 
   Map<String, double> get categoryTotals {
     final map = <String, double>{};
-    for (final e in monthExpenses) map[e.category] = (map[e.category] ?? 0) + e.amount;
+    for (final e in monthExpenses.where((e) => e.type == 'debit')) map[e.category] = (map[e.category] ?? 0) + e.amount;
     return map..removeWhere((_, v) => v == 0);
   }
 
   Map<String, double> get appTotals {
     final map = <String, double>{};
-    for (final e in monthExpenses) map[e.upiApp] = (map[e.upiApp] ?? 0) + e.amount;
+    for (final e in monthExpenses.where((e) => e.type == 'debit')) map[e.upiApp] = (map[e.upiApp] ?? 0) + e.amount;
     return map;
   }
 
   Map<String, double> get merchantTotals {
     final map = <String, double>{};
-    for (final e in monthExpenses) map[e.name] = (map[e.name] ?? 0) + e.amount;
+    for (final e in monthExpenses.where((e) => e.type == 'debit')) map[e.name] = (map[e.name] ?? 0) + e.amount;
     final sorted = Map.fromEntries(map.entries.toList()..sort((a, b) => b.value.compareTo(a.value)));
     return Map.fromEntries(sorted.entries.take(5));
   }
@@ -194,7 +194,7 @@ class ExpenseProvider extends ChangeNotifier {
   List<double> get weekdayTotals {
     // dart weekday: 1=Mon..7=Sun  =>  map to 0=Sun..6=Sat
     final totals = List<double>.filled(7, 0);
-    for (final e in monthExpenses) {
+    for (final e in monthExpenses.where((e) => e.type == 'debit')) {
       final wd = e.date.weekday % 7; // Sun→0, Mon→1 … Sat→6
       totals[wd] += e.amount;
     }
@@ -210,10 +210,12 @@ class ExpenseProvider extends ChangeNotifier {
     return best;
   }
 
-  Expense? get maxExpense => monthExpenses.isEmpty ? null
-      : monthExpenses.reduce((a, b) => a.amount > b.amount ? a : b);
+  Expense? get maxExpense {
+    final debits = monthExpenses.where((e) => e.type == 'debit').toList();
+    return debits.isEmpty ? null : debits.reduce((a, b) => a.amount > b.amount ? a : b);
+  }
 
-  int get uniqueApps => monthExpenses.map((e) => e.upiApp).toSet().length;
+  int get uniqueApps => monthExpenses.where((e) => e.type == 'debit').map((e) => e.upiApp).toSet().length;
   String get topApp {
     if (appTotals.isEmpty) return '—';
     return appTotals.entries.reduce((a, b) => a.value > b.value ? a : b).key;
@@ -310,13 +312,16 @@ class ExpenseProvider extends ChangeNotifier {
 
   void initNotificationListener() {
     NotificationService.onExpense = (data) {
+      final dateStr = data['date'] as String?;
+      final date = dateStr != null ? DateTime.parse(dateStr).toLocal() : DateTime.now();
       final e = Expense(
         name:     data['payee']    as String? ?? 'Unknown',
         amount:   (data['amount'] as num).toDouble(),
         category: data['category'] as String? ?? 'Other',
         upiApp:   data['upiApp']   as String? ?? 'GPay',
         upiRef:   data['upiRef']   as String?,
-        date:     DateTime.now(),
+        date:     date,
+        type:     data['type']     as String? ?? 'debit',
       );
       addExpense(e);
     };

@@ -179,7 +179,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> with WidgetsBinding
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                     icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF888780)),
-                    items: kUpiApps.map((a) => DropdownMenuItem(
+                    items: kUpiApps.where((a) => a != 'SMS').map((a) => DropdownMenuItem(
                       value: a,
                       child: Text(a, style: const TextStyle(fontSize: 16)),
                     )).toList(),

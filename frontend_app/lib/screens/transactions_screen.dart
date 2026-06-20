@@ -147,9 +147,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4))),
             ),
             child: Row(children: [
-              Text('${list.length} transactions', style: const TextStyle(fontSize: 12, color: Color(0xFF888780))),
+              Text('${list.length} transactions', style: const TextStyle(fontSize: 12, color: const Color(0xFF888780))),
               const Spacer(),
-              Text('Total: ${fmtAmt(list.fold(0.0, (s, e) => s + e.amount))}',
+              Text('Total: ${fmtAmt(list.where((e) => e.type == 'debit').fold(0.0, (s, e) => s + e.amount))}',
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             ]),
           ),

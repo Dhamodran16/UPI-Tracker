@@ -73,7 +73,9 @@ class AutoCategorizer {
   static String detect(String text) {
     final lower = text.toLowerCase();
     for (final entry in _rules.entries) {
-      if (entry.value.any((kw) => lower.contains(kw))) return entry.key;
+      if (entry.value.any((kw) => RegExp('\\b${RegExp.escape(kw)}\\b', caseSensitive: false).hasMatch(lower))) {
+        return entry.key;
+      }
     }
     return 'Other';
   }

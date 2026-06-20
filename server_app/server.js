@@ -13,6 +13,10 @@ const { connectDB } = require('./config/db');
 const app = express();
 const isProd = process.env.NODE_ENV === 'production';
 
+if (isProd) {
+  app.set('trust proxy', 1);
+}
+
 // ── Handle unhandled rejections (#23) ─────────────────────────────────────────
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Rejection:', reason);

@@ -13,13 +13,13 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.regex.Pattern
 
 class UpiNotificationService : NotificationListenerService() {
 
-    // Class-level scope — cancelled when service is destroyed (fixes coroutine leak #10)
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
@@ -33,16 +33,26 @@ class UpiNotificationService : NotificationListenerService() {
             "com.android.mms"                        to "SMS",
             "com.samsung.android.messaging"          to "SMS",
             "com.sec.android.app.messaging"          to "SMS",
-            "com.hmdglobal.messages"                 to "SMS"
+            "com.hmdglobal.messages"                 to "SMS",
+            "com.oneplus.sms"                        to "SMS",
+            "com.oneplus.mms"                        to "SMS",
+            "com.coloros.mms"                        to "SMS",
+            "com.oppo.im"                            to "SMS",
+            "com.realme.im"                          to "SMS",
+            "com.xiaomi.mms"                         to "SMS",
+            "com.huawei.message"                     to "SMS",
+            "com.android.messaging"                  to "SMS"
         )
 
         private val AMOUNT_PATTERN = Pattern.compile(
             "(?:Rs\\.?|INR|₹)\\s*([\\d,]+(?:\\.\\d{1,2})?)", Pattern.CASE_INSENSITIVE
         )
+        
         private val PAYEE_PATTERN = Pattern.compile(
-            "(?:to|paid to|payment to|spent at|spent on|transfer to|info[:\\s]+)\\s+([\\w\\s@.\\-_]+?)(?:\\s+on|\\s+via|\\s+ref|\\s+upi|\\s+linked|\$)",
+            "(?:to|paid to|payment to|spent at|spent on|transfer to|towards|at|info[:\\s]+)\\s+([\\w\\s@.\\-_&]+?)(?:\\s+on|\\s+via|\\s+ref|\\s+upi|\\s+linked|\\s+was|\\s+is|\\s+of|\\s+using|\\s+txn|\\s+transaction|\\s+ending|\\s+bal|\\s+balance|\\s+avail|\\s*\\d|\$)",
             Pattern.CASE_INSENSITIVE
         )
+        
         private val REF_PATTERN = Pattern.compile(
             "(?:ref|upi ref|txn|transaction id)(?:\\s+no\\.?)?[:\\s#]+([A-Z0-9]+)",
             Pattern.CASE_INSENSITIVE
@@ -52,31 +62,81 @@ class UpiNotificationService : NotificationListenerService() {
             Pattern.CASE_INSENSITIVE
         )
 
-        // Set by MainActivity when Flutter engine is ready
         var methodChannel: MethodChannel? = null
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
-        serviceScope.cancel()  // Cancel all pending coroutines on disconnect (#10)
+        logDebug("Notification service disconnected.")
+        serviceScope.cancel()
+    }
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        logDebug("Notification service connected and listening.")
+    }
+
+    private fun logDebug(message: String) {
+        android.util.Log.d("UpiTracker", message)
+        try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+            val logsJson = prefs.getString("flutter.debug_logs", "[]")
+            val jsonArray = JSONArray(logsJson)
+            val newLog = JSONObject().apply {
+                put("timestamp", System.currentTimeMillis())
+                put("message", message)
+            }
+            if (jsonArray.length() >= 80) {
+                jsonArray.remove(0)
+            }
+            jsonArray.put(newLog)
+            prefs.edit().putString("flutter.debug_logs", jsonArray.toString()).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("UpiTracker", "Failed to write debug log: ${e.message}")
+        }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        val appName = UPI_PACKAGES[sbn.packageName] ?: return
+        val packageName = sbn.packageName
+        val appName = UPI_PACKAGES[packageName]
+        
+        if (appName == null) {
+            return
+        }
 
         val extras = sbn.notification.extras
-        val title  = extras.getString(Notification.EXTRA_TITLE) ?: ""
-        val text   = extras.getString(Notification.EXTRA_TEXT)  ?: ""
-        val full   = "$title $text"
+        
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
+        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
+        val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
+        val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
+        
+        val textLines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
+        val linesJoined = textLines?.joinToString(" ") { it.toString() } ?: ""
 
-        val parsed = parseUpi(full, appName) ?: return
+        val full = "$title $text $bigText $subText $linesJoined"
+
+        logDebug("New message from $appName ($packageName): '$full'")
+
+        val parsed = parseUpi(full, appName, sbn.postTime)
+        if (parsed == null) {
+            logDebug("Notification ignored: Not matching transaction patterns or is an incoming/OTP/mandate notification.")
+            return
+        }
+
+        logDebug("Successfully parsed transaction: $parsed")
 
         // Send to Flutter UI on main thread
         CoroutineScope(Dispatchers.Main).launch {
-            methodChannel?.invokeMethod("onExpense", parsed)
+            if (methodChannel != null) {
+                methodChannel?.invokeMethod("onExpense", parsed)
+                logDebug("Sent transaction to active Flutter method channel.")
+            } else {
+                logDebug("Flutter method channel is currently offline.")
+            }
         }
 
-        // POST to backend on IO thread using class-level scope (#10)
+        // POST to backend on IO thread using class-level scope
         serviceScope.launch {
             postToBackend(parsed)
         }
@@ -92,7 +152,7 @@ class UpiNotificationService : NotificationListenerService() {
                 showNotification(payee, amount, category)
             }
         } catch (e: Exception) {
-            android.util.Log.e("UpiTracker", "Failed checking notification settings: ${e.message}")
+            logDebug("Failed checking notification settings: ${e.message}")
         }
     }
 
@@ -149,35 +209,76 @@ class UpiNotificationService : NotificationListenerService() {
             val notificationId = (payee.hashCode() + amount.hashCode() + System.currentTimeMillis().hashCode())
             notificationManager.notify(notificationId, builder.build())
         } catch (e: Exception) {
-            android.util.Log.e("UpiTracker", "Failed to show notification: ${e.message}")
+            logDebug("Failed to show alert notification: ${e.message}")
         }
     }
 
-    private fun parseUpi(text: String, appName: String): Map<String, Any>? {
+    private fun parseUpi(text: String, appName: String, postTime: Long): Map<String, Any>? {
         val lowerText = text.lowercase()
 
-        // Filter out incoming/credit transactions
-        val isIncoming = lowerText.contains("received") ||
-                lowerText.contains("refund") ||
-                lowerText.contains("deposited") ||
-                lowerText.contains("added") ||
-                lowerText.contains("paid you") ||
-                lowerText.contains("payment from") ||
-                (lowerText.contains("credited") && 
-                 !lowerText.contains("debited") && 
-                 !lowerText.contains("paid") && 
-                 !lowerText.contains("sent"))
+        // Filter out OTP/Verification messages
+        val isOtp = lowerText.contains("otp") ||
+                lowerText.contains("verification code") ||
+                lowerText.contains("one time password") ||
+                lowerText.contains("verification pin") ||
+                lowerText.contains("code to verify") ||
+                lowerText.contains("securesms") ||
+                lowerText.contains("verify transaction")
 
-        if (isIncoming) {
+        if (isOtp) {
+            logDebug("Filtered out OTP/Verification notification.")
             return null
+        }
+
+        // Determine transaction type
+        val type = when {
+            lowerText.contains("autopay cancelled") ||
+            lowerText.contains("cancelled your autopay") ||
+            lowerText.contains("mandate is successfully revoked") ||
+            lowerText.contains("mandate revoked") ||
+            lowerText.contains("autopay revoked") -> "autopay_cancelled"
+
+            lowerText.contains("autopay created") ||
+            lowerText.contains("mandate successfully created") ||
+            lowerText.contains("mandate created") ||
+            lowerText.contains("autopay set up") ||
+            lowerText.contains("mandate set up") -> "autopay_created"
+
+            lowerText.contains("received") ||
+            lowerText.contains("refund") ||
+            lowerText.contains("deposited") ||
+            lowerText.contains("added") ||
+            lowerText.contains("paid you") ||
+            lowerText.contains("payment from") ||
+            lowerText.contains("credited to") ||
+            (lowerText.contains("credited") && 
+             !lowerText.contains("debited") && 
+             !lowerText.contains("paid") && 
+             !lowerText.contains("sent")) -> "credit"
+
+            else -> "debit"
         }
 
         val cleanText = BALANCE_PATTERN.matcher(text).replaceAll("")
 
-        val amountMatcher = AMOUNT_PATTERN.matcher(cleanText)
-        if (!amountMatcher.find()) return null
-        val amount = amountMatcher.group(1)?.replace(",", "")?.toDoubleOrNull() ?: return null
-        if (amount <= 0) return null
+        var amount = 0.0
+        if (type != "autopay_cancelled") {
+            val amountMatcher = AMOUNT_PATTERN.matcher(cleanText)
+            if (!amountMatcher.find()) {
+                logDebug("Amount extraction failed for text: '$cleanText'")
+                return null
+            }
+            amount = amountMatcher.group(1)?.replace(",", "")?.toDoubleOrNull() ?: return null
+            if (amount <= 0) {
+                logDebug("Extracted amount is zero or negative: $amount")
+                return null
+            }
+        } else {
+            val amountMatcher = AMOUNT_PATTERN.matcher(cleanText)
+            if (amountMatcher.find()) {
+                amount = amountMatcher.group(1)?.replace(",", "")?.toDoubleOrNull() ?: 0.0
+            }
+        }
 
         val payeeMatcher = PAYEE_PATTERN.matcher(cleanText)
         val payee = if (payeeMatcher.find()) payeeMatcher.group(1)?.trim() ?: "Unknown" else "Unknown"
@@ -187,25 +288,43 @@ class UpiNotificationService : NotificationListenerService() {
 
         val category = AutoCategorizer.detect("$payee $text")
 
+        val dateString = try {
+            java.time.Instant.ofEpochMilli(postTime).toString()
+        } catch (e: java.lang.Exception) {
+            java.time.Instant.now().toString()
+        }
+
+        val detectedApp = when {
+            lowerText.contains("gpay") || lowerText.contains("google pay") || lowerText.contains("googlepay") -> "GPay"
+            lowerText.contains("phonepe") || lowerText.contains("phone pe") -> "PhonePe"
+            lowerText.contains("paytm") -> "Paytm"
+            lowerText.contains("bhim") -> "BHIM"
+            lowerText.contains("amazon pay") || lowerText.contains("amazonpay") -> "AmazonPay"
+            else -> appName
+        }
+
         return buildMap {
             put("payee",    payee)
             put("amount",   amount)
             put("category", category)
-            put("upiApp",   appName)
+            put("upiApp",   detectedApp)
             if (ref != null) put("upiRef", ref)
-            put("date", java.time.Instant.now().toString())
+            put("date",     dateString)
+            put("type",     type)
         }
     }
 
     private fun postToBackend(data: Map<String, Any>) {
         try {
-            // Both JWT and API_BASE_URL are written by Flutter's main.dart on startup
-            // from the bundled .env file — no hardcoded URLs anywhere in this file.
             val prefs    = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-            val token    = prefs.getString("flutter.jwt",          null) ?: return
+            val token    = prefs.getString("flutter.jwt",          null)
+            if (token.isNullOrBlank()) {
+                logDebug("Cannot post transaction to backend: JWT token is missing (User not logged in).")
+                return
+            }
             val baseUrl  = prefs.getString("flutter.api_base_url", null)
             if (baseUrl.isNullOrBlank()) {
-                android.util.Log.e("UpiTracker", "api_base_url not set — open the app first to load .env")
+                logDebug("Cannot post transaction to backend: api_base_url is not set.")
                 return
             }
             val endpoint = "$baseUrl/api/expenses"
@@ -221,12 +340,14 @@ class UpiNotificationService : NotificationListenerService() {
             conn.doOutput = true
             conn.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(json) }
             val code = conn.responseCode
-            if (code !in 200..299) {
-                android.util.Log.w("UpiTracker", "Backend returned $code for expense post")
+            if (code in 200..299) {
+                logDebug("Successfully posted transaction to backend. Response code: $code")
+            } else {
+                logDebug("Backend returned error response code $code for transaction post.")
             }
             conn.disconnect()
         } catch (e: Exception) {
-            android.util.Log.e("UpiTracker", "postToBackend failed: ${e.message}")
+            logDebug("postToBackend failed: ${e.message}")
         }
     }
 }
@@ -244,6 +365,11 @@ object AutoCategorizer {
 
     fun detect(text: String): String {
         val lower = text.lowercase()
-        return rules.entries.firstOrNull { (_, kws) -> kws.any { lower.contains(it) } }?.key ?: "Other"
+        return rules.entries.firstOrNull { (_, kws) ->
+            kws.any { kw ->
+                val pattern = Pattern.compile("\\b${Pattern.quote(kw)}\\b", Pattern.CASE_INSENSITIVE)
+                pattern.matcher(lower).find()
+            }
+        }?.key ?: "Other"
     }
 }

@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/expense_provider.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
@@ -88,6 +90,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Clipboard.setData(ClipboardData(text: finalUrl));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Export URL ($format) copied to clipboard!')),
+    );
+  }
+
+  Future<void> _showDiagnosticsDialog(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final logsJson = prefs.getString('debug_logs') ?? '[]';
+    List<dynamic> logs = [];
+    try {
+      logs = jsonDecode(logsJson) as List<dynamic>;
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Service Diagnostics'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: logs.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No logs captured yet.\nMake sure notification access is enabled and transactions occur.',
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: logs.length,
+                    itemBuilder: (c, i) {
+                      final log = logs[logs.length - 1 - i]; // Show newest first
+                      final ts = DateTime.fromMillisecondsSinceEpoch(log['timestamp'] as int);
+                      final timeStr =
+                          "${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}:${ts.second.toString().padLeft(2, '0')}";
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          '[$timeStr] ${log['message']}',
+                          style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await prefs.remove('debug_logs');
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Clear Logs', style: TextStyle(color: AppTheme.danger)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -285,6 +347,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                         ),
                         child: const Text('Settings'),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  Row(
+                    children: [
+                      const Icon(Icons.bug_report_outlined, color: AppTheme.primary),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Diagnostic Logs', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                            Text('View background tracking events & issues', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                      OutlinedButton(
+                        onPressed: () => _showDiagnosticsDialog(context),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(80, 36),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                        child: const Text('View Logs'),
                       ),
                     ],
                   ),

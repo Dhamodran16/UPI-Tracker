@@ -125,8 +125,9 @@ const verifyFirebaseToken = async (req, res) => {
       return res.status(400).json({ error: 'Email already registered.' });
     }
 
-    // Create the new user in Firestore
-    const docRef = await db.collection('users').add({
+    // Create the new user in Firestore using their Firebase Auth UID as the document ID
+    const firebaseUid = decodedToken.uid;
+    await db.collection('users').doc(firebaseUid).set({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       phone: rawPhone,
@@ -134,11 +135,11 @@ const verifyFirebaseToken = async (req, res) => {
       createdAt: new Date().toISOString()
     });
 
-    const token = generateToken(docRef.id);
+    const token = generateToken(firebaseUid);
     
     // Sync back to Firebase Auth to set displayName/email
     try {
-      await getAuth().updateUser(decodedToken.uid, {
+      await getAuth().updateUser(firebaseUid, {
         displayName: name.trim(),
         email: email.toLowerCase().trim()
       });
@@ -148,7 +149,7 @@ const verifyFirebaseToken = async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: docRef.id, name: name.trim(), email: email.toLowerCase().trim(), phone: rawPhone }
+      user: { id: firebaseUid, name: name.trim(), email: email.toLowerCase().trim(), phone: rawPhone }
     });
 
   } catch (err) {

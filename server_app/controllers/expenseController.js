@@ -5,29 +5,73 @@ const { Timestamp } = require('firebase-admin/firestore');
 // POST /api/expenses
 const createExpense = async (req, res) => {
   try {
-    const { amount, payee, category, upiApp, upiRef, note, date } = req.body;
+    const { amount, payee, category, upiApp, upiRef, note, date, type } = req.body;
     const db = getDb();
 
-    if (!amount || isNaN(amount) || Number(amount) <= 0)
+    const isCancelled = type === 'autopay_cancelled';
+    const parsedAmount = Number(amount);
+    if (!isCancelled && (isNaN(parsedAmount) || parsedAmount <= 0)) {
       return res.status(422).json({ error: 'amount must be a positive number.' });
+    }
     if (!payee || !String(payee).trim())
       return res.status(422).json({ error: 'payee is required.' });
 
     const trimmedRef = upiRef ? String(upiRef).trim() : null;
-
-    // Prevent duplicate UPI transactions per user
-    if (trimmedRef) {
-      const dupSnapshot = await db.collection('expenses')
-        .where('userId', '==', req.user.id)
-        .where('upiRef', '==', trimmedRef)
-        .limit(1)
-        .get();
-      if (!dupSnapshot.empty) {
-        return res.status(200).json({ duplicate: true, message: 'Transaction already logged.' });
-      }
-    }
-
     const expenseDate = date ? new Date(date) : new Date();
+
+    // Deduplication logic for identical amount & similar payee in a 3-minute window
+    const threeMinutesAgo = new Date(expenseDate.getTime() - 3 * 60 * 1000);
+    
+    const dupSnapshot = await db.collection('expenses')
+      .where('userId', '==', req.user.id)
+      .where('amount', '==', Number(amount))
+      .get();
+
+    let isDuplicate = false;
+    let duplicateDoc = null;
+
+    dupSnapshot.forEach(doc => {
+      const data = doc.data();
+      const docDate = data.date ? data.date.toDate() : null;
+      if (docDate) {
+        const diff = Math.abs(docDate.getTime() - expenseDate.getTime());
+        if (diff <= 3 * 60 * 1000) {
+          if (data.type === (type || 'debit')) {
+            if (trimmedRef && data.upiRef && data.upiRef === trimmedRef) {
+              isDuplicate = true;
+              duplicateDoc = doc;
+            } else {
+              const p1 = String(data.payee).toLowerCase().trim();
+              const p2 = String(payee).toLowerCase().trim();
+              if (p1 === p2 || p1 === 'unknown' || p2 === 'unknown' || p1.includes(p2) || p2.includes(p1)) {
+                isDuplicate = true;
+                duplicateDoc = doc;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (isDuplicate && duplicateDoc) {
+      const data = duplicateDoc.data();
+      const currentPayee = String(data.payee).trim().toLowerCase();
+      const newPayee = String(payee).trim();
+      const newPayeeLower = newPayee.toLowerCase();
+      
+      const updateData = {};
+      if (currentPayee === 'unknown' && newPayeeLower !== 'unknown') {
+        updateData.payee = newPayee;
+      }
+      if (!data.upiRef && trimmedRef) {
+        updateData.upiRef = trimmedRef;
+      }
+      if (Object.keys(updateData).length > 0) {
+        await duplicateDoc.ref.update(updateData);
+      }
+      
+      return res.status(200).json({ duplicate: true, message: 'Transaction already logged.' });
+    }
 
     const docRef = await db.collection('expenses').add({
       userId: req.user.id,
@@ -38,6 +82,7 @@ const createExpense = async (req, res) => {
       upiRef: trimmedRef,
       note: note ? String(note).trim() : null,
       date: Timestamp.fromDate(expenseDate),
+      type: type || 'debit',
       createdAt: new Date().toISOString()
     });
 
@@ -51,6 +96,7 @@ const createExpense = async (req, res) => {
       upiRef: trimmedRef,
       note: note ? String(note).trim() : null,
       date: expenseDate.toISOString(),
+      type: type || 'debit',
     };
 
     res.status(201).json(expense);
@@ -137,9 +183,12 @@ const getMonthlySummary = async (req, res) => {
     // Filter in memory by month & year
     const filtered = expenses.filter(e => e.date.getMonth() + 1 === month && e.date.getFullYear() === year);
 
+    // Only count 'debit' type towards monthly summary spending statistics
+    const debitsOnly = filtered.filter(e => (e.type || 'debit') === 'debit');
+
     // Calculate Category Breakdown
     const catMap = {};
-    filtered.forEach(e => {
+    debitsOnly.forEach(e => {
       if (!catMap[e.category]) {
         catMap[e.category] = { total: 0, count: 0 };
       }
@@ -155,7 +204,7 @@ const getMonthlySummary = async (req, res) => {
 
     // Calculate Daily Trend
     const dailyMap = {};
-    filtered.forEach(e => {
+    debitsOnly.forEach(e => {
       const dateStr = e.date.toISOString().split('T')[0]; // YYYY-MM-DD
       if (!dailyMap[dateStr]) {
         dailyMap[dateStr] = { total: 0, count: 0 };
@@ -171,8 +220,8 @@ const getMonthlySummary = async (req, res) => {
     })).sort((a, b) => a._id.localeCompare(b._id));
 
     // Calculate totals
-    const total = filtered.reduce((sum, e) => sum + e.amount, 0);
-    const count = filtered.length;
+    const total = debitsOnly.reduce((sum, e) => sum + e.amount, 0);
+    const count = debitsOnly.length;
 
     res.json({
       month, year,
@@ -323,7 +372,7 @@ const deleteExpense = async (req, res) => {
 };
 
 // PATCH /api/expenses/:id
-const ALLOWED_UPDATE_FIELDS = ['amount', 'payee', 'category', 'upiApp', 'note', 'date', 'upiRef'];
+const ALLOWED_UPDATE_FIELDS = ['amount', 'payee', 'category', 'upiApp', 'note', 'date', 'upiRef', 'type'];
 
 const updateExpense = async (req, res) => {
   try {

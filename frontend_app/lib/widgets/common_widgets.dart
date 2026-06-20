@@ -96,21 +96,55 @@ class TxnTile extends StatelessWidget {
               Text(expense.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 2),
               Text(
-                '${DateFormat('d MMM').format(expense.date)}  ·  ${expense.upiApp}${expense.note != null && expense.note!.isNotEmpty ? "  ·  ${expense.note}" : ""}',
+                '${DateFormat('d MMM, h:mm a').format(expense.date)}  ·  ${expense.upiApp}${expense.note != null && expense.note!.isNotEmpty ? "  ·  ${expense.note}" : ""}',
                 style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 maxLines: 1, overflow: TextOverflow.ellipsis,
               ),
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('-${fmtAmt(expense.amount)}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFFA32D2D))),
+              Text(
+                expense.type == 'credit'
+                    ? '+${fmtAmt(expense.amount)}'
+                    : expense.type == 'autopay_created'
+                        ? 'Limit ${fmtAmt(expense.amount)}'
+                        : expense.type == 'autopay_cancelled'
+                            ? 'Cancelled'
+                            : '-${fmtAmt(expense.amount)}',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: expense.type == 'credit'
+                      ? const Color(0xFF2E7D32)
+                      : expense.type == 'autopay_created'
+                          ? const Color(0xFF1565C0)
+                          : expense.type == 'autopay_cancelled'
+                              ? const Color(0xFF757575)
+                              : const Color(0xFFA32D2D),
+                ),
+              ),
               const SizedBox(height: 2),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: (AppColors.category[expense.category] ?? const Color(0xFF888780)).withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.16 : 0.10),
+                  color: (expense.type == 'autopay_created' || expense.type == 'autopay_cancelled'
+                          ? const Color(0xFF757575)
+                          : (AppColors.category[expense.category] ?? const Color(0xFF888780)))
+                      .withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.16 : 0.10),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(expense.category, style: TextStyle(fontSize: 14, color: AppColors.category[expense.category] ?? const Color(0xFF888780))),
+                child: Text(
+                  expense.type == 'autopay_created'
+                      ? 'Autopay Setup'
+                      : expense.type == 'autopay_cancelled'
+                          ? 'Autopay Revoked'
+                          : expense.category,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: expense.type == 'autopay_created' || expense.type == 'autopay_cancelled'
+                        ? const Color(0xFF757575)
+                        : AppColors.category[expense.category] ?? const Color(0xFF888780),
+                  ),
+                ),
               ),
             ]),
           ]),

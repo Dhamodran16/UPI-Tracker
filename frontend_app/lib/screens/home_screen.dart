@@ -19,7 +19,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final p    = context.watch<ExpenseProvider>();
-    final now  = DateTime.now();
     final days = DateUtils.getDaysInMonth(p.selectedYear, p.selectedMonth);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

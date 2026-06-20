@@ -19,4 +19,20 @@
 - [x] Form Styling Alignment
   - [x] Ensure form labels are 14 (floating/labelStyle in app_theme.dart)
   - [x] Ensure values are 16 on forms (explicit text styles on TextFields/TextFormFields)
-
+- [x] Notification Auto-Tracking Fixes & Diagnostics
+  - [x] Fix rich-text notification extraction using `getCharSequence`
+  - [x] Expand SMS messaging app package list (OnePlus, Xiaomi, Oppo, Realme, Huawei)
+  - [x] Enhance payee patterns (support "towards", "at", "for") and ignore OTP notifications
+  - [x] Implement persistent diagnostic logging in background service
+  - [x] Add interactive "View Logs" dialog under Settings screen
+  - [x] Clear all compile warnings in static analysis (`flutter analyze`)
+- [x] Advanced Auto-Tracking Features
+  - [x] Extract exact transaction timestamp (`sbn.postTime`) and display formatted time (`d MMM, h:mm a`)
+  - [x] Implement 3-minute time window deduplication filter on backend to prevent repeating listings
+  - [x] Categorize transactions into `debit`, `credit`, `autopay_created`, and `autopay_cancelled` types
+  - [x] Separate spending calculations so credits and auto-pay limits are not added to dashboard spent totals
+  - [x] Custom styled widgets for credit (+ Green), autopay setup (Limit Blue), and autopay revoked (Cancelled Grey)
+  - [x] Update auto-categorizers (Kotlin/Dart) with whole-word regex bounds (`\bkeyword\b`) to fix "autopay" -> "Transport" false matches
+  - [x] Parse and detect the actual payment app name (GPay, PhonePe, Paytm, etc.) directly from bank SMS body text
+  - [x] Remove "SMS" option from manual "Add Expense" dropdown while keeping SMS tracking functional
+  - [x] Secure dropdown selection in "Edit Expense" to show "SMS" only when the transaction is an SMS-derived expense (avoiding crashes)

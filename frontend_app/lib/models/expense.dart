@@ -7,6 +7,7 @@ class Expense {
   final String? upiRef;
   final String? note;
   final DateTime date;
+  final String type; // 'debit', 'credit', 'autopay_created', 'autopay_cancelled'
 
   Expense({
     this.id,
@@ -17,6 +18,7 @@ class Expense {
     this.upiRef,
     this.note,
     required this.date,
+    this.type = 'debit',
   });
 
   factory Expense.fromJson(Map<String, dynamic> j) => Expense(
@@ -28,6 +30,7 @@ class Expense {
     upiRef:   j['upiRef']  as String?,
     note:     j['note']    as String?,
     date:     DateTime.parse(j['date'] as String),
+    type:     j['type']    as String? ?? 'debit',
   );
 
   Map<String, dynamic> toJson() => {
@@ -38,10 +41,11 @@ class Expense {
     if (upiRef != null && upiRef!.isNotEmpty) 'upiRef': upiRef,
     if (note   != null && note!.isNotEmpty)   'note':   note,
     'date':     date.toIso8601String(),
+    'type':     type,
   };
 
   Expense copyWith({String? id, String? name, double? amount, String? category,
-      String? upiApp, String? upiRef, String? note, DateTime? date}) =>
+      String? upiApp, String? upiRef, String? note, DateTime? date, String? type}) =>
     Expense(
       id:       id       ?? this.id,
       name:     name     ?? this.name,
@@ -51,6 +55,7 @@ class Expense {
       upiRef:   upiRef   ?? this.upiRef,
       note:     note     ?? this.note,
       date:     date     ?? this.date,
+      type:     type     ?? this.type,
     );
 }
 
